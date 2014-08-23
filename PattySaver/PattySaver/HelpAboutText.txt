@@ -1,0 +1,60 @@
+﻿Welcome. Scot, put some better greeting text here.
+
+Keyboard Shortcuts
+------------------
+
+Escape          Closes the Screen Saver
+
+Spacebar        Pauses or Resumes the photo Slideshow
+Right Arrow     Displays the next Slideshow photo
+Left Arrow      Displays the previous Slideshow photo
+
+Right Click     Opens the context menu
+Backspace       Toggles the display of photo metadata
+
+F1              Opens this dialog box (Help / About)
+F2              Opens the Settings dialog box
+F3              Opens the Font and Color Dialog
+F4              Opens the Advanced Color Dialog
+
+Delete          Marks the currently displayed photo as
+                'Do not display in Screen Saver'.
+
+Control+E       Opens a File Explorer window to the 
+                currently displayed photo
+
+Up Arrow
+Down Arrow      Pauses Slideshow and enters 
+                'Explore Photos in this Folder' mode
+
+While in 'Explore Photos in this Folder' mode, the Up Arrow Key acts as 'Show Next Photo in this Folder', and the Down Arrow key acts as 'Show Previous Photo in this Folder'. To leave 'Explore Photos in this Folder' mode, press the Left or Right Arrow key, which will take you to the next or previous photo in your Slideshow.
+
+Secret Double-Probation Keys (Advanced, Hush-hush)
+--------------------------------------------------
+
+Control+S       Toggles the "shadow effect" applied
+                to the display of metadata text
+
+Control+Zero    Restores all metadata text display 
+                settings to last saved values
+
+Control+ScrollWheel
+                Increases or decreases Font size of
+                metadata text (sizes 8 through 124)
+
+Control+Shift+ScrollWheel
+                Cycles metadata display through
+                174 Font colors (including Transparent)
+
+Control+Click
+                Cycles metadata display through 5
+                contrast settings
+
+Control+Shift+Click
+                Cycles metadata display through 
+                3 anti-aliasing settings
+
+Control+Shift+MouseWheelClick
+                Summons a doctor to treat your 
+                obsessiveness problem. And your
+                carpal tunnel syndrome.

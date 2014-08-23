@@ -1,0 +1,1985 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using System.Drawing.Imaging;
+using System.IO;
+using System.Drawing.Text;
+using System.Diagnostics;
+
+using ScotSoft.PattySaver;
+using ScotSoft.PattySaver.DebugUtils;
+using ScotSoft.PattySaver.LaunchManager;
+
+namespace ScotSoft.PattySaver
+{
+    public partial class ScreenSaverForm : Form
+    {
+
+        #region Fields
+
+        // Public Fields accessed by other forms
+        public Settings settingsForm;                           // the Settings Form object, accessable by other forms; null when not in DoSettings() scope
+        public PictureBox refto_pbMainPhoto;                    // this public reference to our pb allows other forms to call Invalidate on it
+        public FontDialog fontdlg;                              // the Font Dialog we'll use from FullScreen and Settings forms
+        public Font fdFont;                                     // the Font we use to format the font dialog
+        public ColorDialog colordlg;                            // The Color Dialog we'll use from FullScreen and Settings forms
+        public FontData metaFontData;                           // Class we defined, object which holds the data we use to build our metadata font
+
+        // Objects which provide access to Files
+        private MainFileInfoSource MainFiles;                   // Class we defined, object holding Main fileinfo list, with methods for manipulation thereof.
+        private ExploreThisFolderFileInfoSource ETFFiles;       // Class we defined, object holding the current ETF fileinfo list. Null if we're not in that mode.
+
+        // Form-Wide Modes and States
+        private bool fInConstructor = false;                    // tells us that we are in Constructor code; lets us defer/abort things like Resize, etc
+        private bool fConstructorHasCompleted = false;          // tells us that the Constructor has finished
+        private bool fInFormLoad = false;                       // lets us defer/abort things like OnPaint if we're still loading the form when those events occur
+        private bool fFormLoadHasCompleted = false;             // tells us that the FormLoad code has finished
+        private bool fInFormClosing = false;                    // tells us that the form is in the process of closing
+        private bool fFormClosingHasCompleted = true;           // tells us that the formClosing code has finished
+        private bool fShowingEmbeddedFileImage;                 // tells us that we're showing an embedded resource, not a photo from file.                    
+        private bool fInETFMode = false;                        // lells us know whether we're in ExploreThisFolder mode.
+        private bool fShiftDown = false;                        // lets us know the ShiftKey is down.  Probably should move to some kind of Keyboard State object...
+        private bool fCtrlDown = false;                         // lets us know the ControlKey is down. 
+        private bool fWaitingForFileToLoad = false;             // lets us know that we've started loading a file, but it has not yet completed, or been drawn on screen.
+        private bool fScreenSaverWindowStyle = false;           // lets us know whether we're maximized, topmost and not-resizable, or the opposite
+        private bool fInWindowStyleChange = false;              // tells us that we're in the middle of changing window styles
+        private bool fWasInSlideshowModeWhenMenuOpened;         // lets us pause and resume Slideshow Mode when menu opens and closes.
+        private bool fWasInSlideshowModeWhenETFStarted;         // lets us pause and resume Slideshow Mode entering and exiting ETF mode.
+        private bool fWasInSlideshowModeWhenDeactivated = false;// lets us pause and resume Slideshow Mode when window is deactivate/activated
+
+        // Slideshow object
+        public Slideshow ourSlideshow;                          // the object which controls our slideshow mechanics
+
+        // These values are used by our metadata/ETF text drawing code
+        private string currentExploreFolderData = "";                                           // data
+        private string currentImageMetadata = "";                                               // data
+        private float allTextLeft = 20.0F;                                                      // left location of all text (metadata, etf)
+        private float ETFdataTop = 20.0F;                                                       // top location of etf text
+        private float metadataTop = 20.0F;                                                      // initial top location of metadta text
+        private float ETFtoMetadataOffsetBase = 40.0F;                                          // vertical spacing between etf text and metadata text
+        public Font metaFont = new Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular);      // *default* font used for metadata text
+        public Brush metaBrush = new SolidBrush(Color.Aqua);                                    // *default* font color used for metadata text
+        private Font etfFont = new Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular);      // *default* font used for etf text; syncs to metadata eventually
+        private Brush etfBrush = new SolidBrush(Color.Yellow);                                  // font color always used by etf text
+        private Color shadowBrushColor = Color.Black;                                           // color always used by text "shadowing"
+
+        // debug
+        long dbgTotalMemoryHighWaterMark = 0;
+
+        #endregion Fields
+
+
+        #region Constructors
+
+        /// <summary>
+        /// Constructor for the FullScreenForm, which is the primary display for our screen saver.
+        /// </summary>
+        /// <param name="Bounds">Size of the rectangle in which to draw form.</param>
+        public ScreenSaverForm(Rectangle Bounds)
+        {
+            fInConstructor = true;
+
+            this.InitializeComponent();                     // This is auto-generated by the VS Designer; it adds all the controls it knows about
+            // to the Form, and then binds event handlers to them. Ignore, but do not remove.
+
+            SettingsInfo.InitializeAndLoadConfigSettingsFromStorage();            // Load configutation data from disk
+            metaFontData = new FontData();                                          // Build a default fontData block
+            SetFontDataFromConfigData();                                  // Update the fontData with saved data
+
+            this.Bounds = Bounds;                           // Sets the size of our screen saver window to the passed in value
+
+            fInConstructor = false;
+            fConstructorHasCompleted = true;
+        }
+
+        #endregion Constructors
+
+
+        #region Public Members
+
+        // see files:
+        // FontData.cs
+        // Slideshow.cs
+
+        #endregion Public Members
+
+
+        #region Form Events
+
+        /// <summary>
+        /// Code that runs after the Form is created but before the Form is Displayed.
+        /// </summary>
+        private void FullScreenForm_Load(object sender, EventArgs e)
+        {
+            // Scot, this runs immediately after the constructor (well, almost. There are events which can come in 
+            // between constructor and Load (resize events, etc). Here we prep and initialize everything before we show the Form.
+            // After that, it's all a matter of reacting to events (clicks, keypresses, timers, etc).
+            fInFormLoad = true;
+
+            // Create the slideshow object
+            ourSlideshow = new Slideshow(this);
+            ourSlideshow.IntervalInMilliSeconds = SettingsInfo.SlideshowIntervalInSecs * 1000;
+            ourSlideshow.DeferralTimeWindowInMilliseconds = 1500;
+            ourSlideshow.DeferralIntervalInMilliseconds = ourSlideshow.IntervalInMilliSeconds;
+
+            // if we're running in ScreenSaverMode, go fullscreen, etc.  If not, make us resizable, etc.
+            if (Modes.fOpenInScreenSaverMode)
+            {
+                EnterScreenSaverWindowStyle();
+            }
+            else
+            {
+                ExitScreenSaverWindowStyle(true);
+            }
+
+            // point a public field to our picturebox, so that through this field the pb can be addressed by other forms (settings, for example)
+            refto_pbMainPhoto = pbMain;
+
+            // create a public font dialog that we can access from this and other forms
+            fontdlg = new FontDialog();
+
+            // set the font dialog properties
+            fontdlg.ShowColor = true;
+            fontdlg.ShowEffects = true;
+            fontdlg.ShowApply = true;
+            fontdlg.FontMustExist = true;
+
+            // set the font dialog to match the metaDataFont
+            FormatFontDialogFromFontData(metaFontData);
+
+            // Bind the event raised by the Font Dialog Apply Button to our handler
+            fontdlg.Apply += new System.EventHandler(FontDialog_Apply);
+
+            // Create the Color Picker Dialog - removed for bugs.  Will restore later.
+            // colordlg = new ColorDialog();
+
+            // Bind the MouseWheel event (can't be done from designer)
+            MouseWheel += FullScreenForm_MouseWheel;
+
+            // Add the context menu
+            this.ContextMenuStrip = contextMenuMain;
+
+            // Set title of window
+            this.Text = ProductName;
+
+            // Now lets show a picture immediately.
+            // Create the MainFiles object - this leaves the index pointed at -1
+            MainFiles = new MainFileInfoSource((List<DirectoryInfo>)SettingsInfo.GetListOfDirectoryInfo(), SettingsInfo.GetBlacklistedFullFilenames(), SettingsInfo.UseRecursion, SettingsInfo.ShuffleMode);
+            DoPreviousOrNext(false);
+
+            // If we're in screensaverMode, start the slideshow
+            if (Modes.fOpenInScreenSaverMode) ourSlideshow.Enter();
+
+            fInFormLoad = false;
+            fFormLoadHasCompleted = true;
+        }
+
+        /// <summary>
+        /// Code that runs when the Form loses focus.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FullScreenForm_Deactivate(object sender, EventArgs e)
+        {
+            bool fDebugOutput = true;
+            bool fDebugoutputTraceLevel = false;
+            bool fDebugTrace = fDebugOutput && fDebugoutputTraceLevel;
+
+            Debug.WriteLineIf(fDebugTrace, "FullScreenForm_Deactivate(): entering.");
+
+            if (ourSlideshow.IsRunning)
+            {
+                Debug.WriteLineIf(fDebugTrace, "   FullScreenForm_Deactivate(): turning off SlideshowMode.");
+
+                fWasInSlideshowModeWhenDeactivated = true;
+                ourSlideshow.Exit();
+            }
+
+            if (fScreenSaverWindowStyle)
+            {
+                Debug.WriteLineIf(fDebugTrace, "   FullScreenForm_Deactivate(): Exiting ScreenSaverWindowStyle.");
+                ExitScreenSaverWindowStyle();
+            }
+
+            Debug.WriteLineIf(fDebugTrace, "FullScreenForm_Deactivate(): exiting.");
+        }
+
+        /// <summary>
+        /// Code that runs when the Form regains focus.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FullScreenForm_Activated(object sender, EventArgs e)
+        {
+            bool fDebugOutput = true;
+            bool fDebugoutputTraceLevel = false;
+            bool fDebugTrace = fDebugOutput && fDebugoutputTraceLevel;
+
+            Debug.WriteLineIf(fDebugTrace, "FullScreenForm_Activated(): entering.");
+
+            if (fWasInSlideshowModeWhenDeactivated)
+            {
+                Debug.WriteLineIf(fDebugTrace, "   FullScreenForm_Activated(): Entering ScreenSaverWindowStyle.");
+                ourSlideshow.Enter();
+            }
+
+            Debug.WriteLineIf(fDebugTrace, "FullScreenForm_Activated(): exiting.");
+        }
+
+        /// <summary>
+        /// Code that runs when the Form knows it is about to Close, but has not yet Closed.
+        /// </summary>       
+        private void FullScreenForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            bool fDebugOutput = true;
+            bool fDebugoutputTraceLevel = false;
+            bool fDebugTrace = fDebugOutput && fDebugoutputTraceLevel;
+
+            Debug.WriteLineIf(fDebugTrace, "FullScreenForm_FormClosing(): entering.");
+
+            // This is your opportunity to prompt the user to save, or 
+            // Cancel the Closure. You may end up here because somebody closed your window
+            // in a way you weren't expecting (ie, Windows Shutdown, etc).
+
+            fInFormClosing = true;
+
+            // if slideShowTimer is active, kill it
+            ourSlideshow.Exit();
+
+            // Store away the window location and size
+            if (this.WindowState != FormWindowState.Maximized && this.WindowState != FormWindowState.Minimized)
+            {
+                SettingsInfo.dbgLastWindowLocationPoint = this.Location;
+                SettingsInfo.dbgLastWindowSize = this.Size;
+            }
+
+            // Get this session's blacklist from the MainFiles object and add it to config settings
+            SettingsInfo.AddFullFilenamesToBlacklist((List<String>)MainFiles.BlacklistedFullFilenames);
+
+            // Store away the current font info... although it should already be current...
+            UpdateConfigSettingsFromMetaFontData();
+
+            // Save the ConfigSettings
+            SettingsInfo.SaveConfigSettingsToStorage();
+
+            Debug.WriteLineIf(fDebugTrace, "FullScreenForm_FormClosing(): exiting.");
+
+            this.fInFormClosing = false;
+        }
+
+        /// <summary>
+        /// Code that runs immediatelly after the Form Closes, but before the Form Object passes out of Scope.
+        /// </summary>
+        private void FullScreenForm_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            bool fDebugOutput = true;
+            bool fDebugoutputTraceLevel = true;
+            bool fDebugTrace = fDebugOutput && fDebugoutputTraceLevel;
+
+            Debug.WriteLineIf(fDebugTrace, "FullScreenForm_FormClosed(): entering.");
+
+            fFormClosingHasCompleted = true;
+
+            // Any time the FullScreenForm closes, quit the app.
+            Debug.WriteLineIf(fDebugTrace, "   FullScreenForm_FormClosed(): calling Application.Exit().");
+            CancelEventArgs cea = new CancelEventArgs();
+            Application.Exit(cea);
+            Debug.WriteLineIf(fDebugTrace, "   FullScreenForm_FormClosed(): CancelEventArgs.Cancel: " + cea.Cancel.ToString());
+            Debug.WriteLineIf(fDebugTrace, "FullScreenForm_FormClosed(): exiting.");
+        }
+
+        /// <summary>
+        /// Code which runs AFTER the size of the form window has changed, for any reason.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FullScreenForm_SizeChanged(object sender, EventArgs e)
+        {
+            if (fConstructorHasCompleted && fFormLoadHasCompleted)  // don't react during constructor or form_load
+            {
+                if (fScreenSaverWindowStyle)
+                {
+                    if (WindowState == FormWindowState.Minimized)
+                    {
+                        ourSlideshow.Exit();
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Code that runs on our Form when the Apply button of the Font Dialog is clicked.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FontDialog_Apply(object sender, System.EventArgs e)
+        {
+            metaFontData.SetPropertiesFromFontDlg(fontdlg);
+            pbMain.Invalidate();
+        }
+
+        #endregion Form Events
+
+
+        #region Control Events
+        // Not all Control Event code is in this section.  Some of it
+        // resides in sections closer to their purpose.
+
+        // Code which runs every time the pictureBox is Painted
+        private void pbMainPhoto_Paint(object sender, PaintEventArgs e)
+        {
+            // Draw the image metadata and ETF data
+            if (fConstructorHasCompleted && fFormLoadHasCompleted)
+            {
+                PaintText(e);
+            }
+        }
+
+        // For Context Menu Events, see file KeyboardMouseMenu.cs
+        // For pbMain LoadCompleted event, see the region
+        // "Methods Called By Form and Control Events", in the 
+        // "Putting the Picture On Screen" section
+
+        #endregion Control Events
+
+
+        #region Methods Called By Form and Control Events
+
+        // ----- Putting the Picture On Screen ----- //
+
+        /// <summary>
+        /// Gets metadata from the file, then loads the image from the file into the PictureBox, asynchronously.
+        /// </summary>
+        /// <param name="file">File from which to get metadata and load image into PictureBox.</param>
+        private void LoadFileIntoPictureBoxAsync(FileInfo file)
+        {
+            bool fDebugOutput = true;
+            bool fDebugOutputTraceLevel = false;
+            bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
+
+            Debug.WriteLineIf(fDebugTrace, "LoadFileIntoPictureBoxAsync(): entering.");
+
+            try
+            {
+                if (file != null && File.Exists(file.FullName))
+                {
+                    // clear data
+                    if (currentImageMetadata != null) currentImageMetadata = "Getting metadata...";
+                    if (currentExploreFolderData != null) currentExploreFolderData = "Getting folder data...";
+
+                    // clear picture box
+                    pbMain.ImageLocation = String.Empty;
+                    pbMain.Image = null;
+
+                    // restore Zoom mode, if not already there
+                    if (pbMain.SizeMode != PictureBoxSizeMode.Zoom) pbMain.SizeMode = PictureBoxSizeMode.Zoom;
+
+                    // set current data
+                    currentImageMetadata = GetMetadata(file);      // yes, this does mean we are fetching the image twice,
+                    // but if we don't, we won't draw the metadata until after the async
+                    // file load, and that means text will pop onto screen after picture is drawn
+
+                    // update the current ETF data if necessary
+                    if (fInETFMode)
+                    {
+                        SetExploreFolderData(file);
+                    }
+
+                    fWaitingForFileToLoad = true;                       // this will be reset to false in the pbMain_LoadCompleted event handler
+
+                    // When the image has finished loading, we'll get an pbMain_LoadCompleted event, where we will continue things
+                    pbMain.WaitOnLoad = true;
+                    pbMain.LoadAsync(file.FullName);
+
+                }
+                else  // file was null, or didn't exist any more
+                {
+                    Debug.WriteLineIf(fDebugOutput, "   LoadFileIntoPictureBoxAsync(): File was null or did not exist.");
+                    ShowNoImageError();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLineIf(fDebugOutput, "  * LoadFileIntoPictureBoxAsync(): Exception loading image from file '" + file.FullName + "'. Exception: " + ex.Message);
+                ShowNoImageError();
+            }
+
+            Debug.WriteLineIf(fDebugTrace, "LoadFileIntoPictureBoxAsync(): exiting.");
+
+        }
+
+        /// <summary>
+        /// Control Event handler - handles event which fires when PictureBox has completed loading of file.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void pbMain_LoadCompleted(object sender, AsyncCompletedEventArgs e)
+        {
+            bool fDebugOutput = true;
+            bool fDebugOutputTraceLevel = false;
+            bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
+
+            Debug.WriteLineIf(fDebugTrace, "pbMain_LoadCompleted(): entering.");
+
+            // Our memory footprint goes up with each image loaded, until the CLR thinks
+            // it looks too high; then the CLR calls GC.Collect to force garbage collection.
+            // We can instead force the CLR to garbage collect after each image, which keeps
+            // our memory footprint smaller, but can possibly slow down very fast scrolling
+            // of images. Uncomment the following line to make that happen.
+
+            //GC.Collect();
+
+            if (fDebugTrace)
+            {
+                long newTotalMemory = GC.GetTotalMemory(false);
+                string output = "   pbMain_LoadCompleted(): Total Memory occupied: " + newTotalMemory;
+                if (newTotalMemory > dbgTotalMemoryHighWaterMark)
+                {
+                    output += " new high (old high was " + dbgTotalMemoryHighWaterMark + ")";
+                    dbgTotalMemoryHighWaterMark = newTotalMemory;
+                }
+                Debug.WriteLineIf(fDebugTrace, output);
+            }
+
+            // In theory, if we are here, file has loaded and been drawn. I certainly hope so.
+
+            fShowingEmbeddedFileImage = false;
+            fWaitingForFileToLoad = false;
+
+            // if the image is smaller than the picturebox, change zoom mode to center
+            if (pbMain.Image.PhysicalDimension.Height < pbMain.Height &&
+                pbMain.Image.PhysicalDimension.Width < pbMain.Width) pbMain.SizeMode = PictureBoxSizeMode.CenterImage;
+
+            Debug.WriteLineIf(fDebugTrace, "pbMainPhoto_LoadCompleted(): exiting.");
+        }
+
+        /// <summary>
+        /// Collects all the file and image metadata.
+        /// </summary>
+        /// <param name="file"></param>
+        /// <returns></returns>
+        private string GetMetadata(FileInfo file)
+        {
+            string retVal = "";
+            retVal += GetBasicFileInfo(file) + Environment.NewLine;
+            retVal += GetImageMetadata(file) + Environment.NewLine;
+            retVal += GetExtendedFileDetails(file);
+            return retVal;
+        }
+
+        /// <summary>
+        /// Gets the most basic file information from the FileInfo block.
+        /// </summary>
+        /// <param name="file"></param>
+        /// <returns></returns>
+        private string GetBasicFileInfo(FileInfo file)
+        {
+            string retVal = "";
+            // get the full path and collapse it down to an ellipsis version
+            string fullPath = Path.GetFullPath(file.DirectoryName).EllipsisString(35);
+            if (!fullPath.Contains(@"\"))
+            {
+                fullPath = Path.GetPathRoot(file.DirectoryName) + @"...\" + fullPath;
+            }
+
+            // first two items: filename and shortened path
+            retVal += file.Name;
+            retVal += Environment.NewLine + fullPath;
+            return retVal;
+        }
+
+        /// <summary>
+        /// Gets the metadata stored in the image itself.
+        /// </summary>
+        /// <param name="file"></param>
+        /// <returns></returns>
+        private string GetImageMetadata(FileInfo file)
+        {
+            bool fDebugOutput = true;
+            bool fDebugOutputTraceLevel = true;
+            bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
+
+            string retVal = "";
+            string strTemp;
+
+            // get an image from the file, so we can get its details
+            Image image = Image.FromFile(file.FullName);
+
+            // Next item, DateTaken
+            // In this logic, we only add Date Taken if we can find a Date Taken value
+            DateTime? myDateTime = image.GetDateTaken();
+            if (myDateTime != null)
+            {
+                DateTime myOtherDateTime = (DateTime)myDateTime;
+                //stMeta = myOtherDateTime.ToString("yyyy/MM/dd  HH:mm:ss");
+                strTemp = myOtherDateTime.ToString();
+                retVal += strTemp;
+            }
+
+            // Description, which isn't Comments, but might be worth listing if it's filled with something.
+            // Doesn't get added if nothing is found.
+            strTemp = null;
+            strTemp = image.GetDescription();
+            if (strTemp != null)
+            {
+                retVal += Environment.NewLine + strTemp;
+            }
+
+            //if ((strTemp = image.GetDescription()) != null) retVal += Environment.NewLine + strTemp;
+
+            return retVal;
+        }
+
+        /// <summary>
+        /// Gets the file information stored in the Extended File Details.
+        /// </summary>
+        /// <param name="file"></param>
+        /// <param name="fUseCachedFolders"></param>
+        /// <returns></returns>
+        private string GetExtendedFileDetails(FileInfo file, bool fUseCachedFolders = true)
+        {
+            bool fDebugOutput = true;
+            bool fDebugOutputTraceLevel = false;
+            bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
+
+            Debug.WriteLineIf(fDebugTrace, "GetExtendedFileDetails(): entering.");
+
+            string retVal = "";
+
+            // Note that you can still force the read-from-disk way by calling GetExtendedFileDetails(FileFullname, false).
+
+            // create our Shell32 object
+            Shell32.Folder objFolder;
+
+            // Cached method: get the objFolder from a Dictionary of 
+            // Shell32.Folders we built during startup, instead of creating a new
+            // shell object every time.
+            if (fUseCachedFolders)
+            {
+                if (!MainFiles.ShellDict.TryGetValue(file.DirectoryName, out objFolder))
+                {
+                    Logging.LogLine("  GetExtendedFileDetails(): Failed to get objFolder from Dictionary. Falling back to read from disk method.");
+                    GetExtendedFileDetails(file, false);
+                }
+            }
+            else        // for some reason, desired objfolder was not found in cache, so build it
+            {
+                Shell32.Shell shell = new Shell32.Shell();
+                // objFolder = shell.NameSpace(Path.GetDirectoryName(file.FullName));
+                objFolder = shell.NameSpace(file.DirectoryName);
+            }
+
+            // get the data block for the file
+            Shell32.FolderItem2 xItem = (Shell32.FolderItem2)objFolder.ParseName(file.Name);
+
+            // Get the Comments at index 24 from the data
+            bool fGot24 = false;
+            string stReturn = objFolder.GetDetailsOf(xItem, 24).ToString().Trim();
+            if (!string.IsNullOrEmpty(stReturn) && !string.IsNullOrWhiteSpace(stReturn))
+            {
+                retVal += stReturn;
+                fGot24 = true;
+            }
+
+            // Get the Tags at index 18
+            stReturn = objFolder.GetDetailsOf(xItem, 18).ToString().Trim();
+            if (!string.IsNullOrEmpty(stReturn) && !string.IsNullOrWhiteSpace(stReturn))
+            {
+                // Let's give ourselves a new line for every tag
+                stReturn = stReturn.Replace(";", Environment.NewLine + "  ");
+                if (fGot24) retVal += Environment.NewLine;
+                retVal += "Tags: " + Environment.NewLine + "  " + stReturn;
+            }
+
+            Debug.WriteLineIf(fDebugTrace, "GetExtendedFileDetails(): exiting.");
+            return retVal;
+        }
+
+        /// <summary>
+        /// Shows the "Error" image, and sets the metadata for it.
+        /// </summary>
+        private void ShowNoImageError()
+        {
+            pbMain.Image = PattySaverResources.noimage;
+            pbMain.ImageLocation = String.Empty;
+            fShowingEmbeddedFileImage = true;
+            currentImageMetadata = "What_just_happened.jpg" + Environment.NewLine +
+                @"C:\Well That's Just Great\...\Just Perfect" + Environment.NewLine +
+                "Date: Right About Now" + Environment.NewLine +
+                "Tags:" + Environment.NewLine +
+                "  No picture" + Environment.NewLine +
+                "  Better apologize" + Environment.NewLine +
+                "  Try to smile" + Environment.NewLine +
+                "  Probably User error" + Environment.NewLine;
+        }
+
+        /// <summary>
+        /// Collects the ETF display data and puts it into the currentExploreFolderData field.
+        /// </summary>
+        /// <param name="file"></param>
+        private void SetExploreFolderData(FileInfo file = null)
+        {
+            string fullFilename = "";
+            if (file != null)
+            {
+                fullFilename = file.FullName;
+            }
+            else
+            {
+                fullFilename = pbMain.ImageLocation;
+            }
+
+            string retVal = "";
+
+            if (!String.IsNullOrEmpty(fullFilename) || !String.IsNullOrWhiteSpace(fullFilename))
+            {
+                if (fInETFMode)
+                {
+                    int index = ETFFiles.IndexOf(ETFFiles.GetFileByFullName(fullFilename));
+                    int count = ETFFiles.Count;
+
+                    int blackListCount = ETFFiles.DirectoryInfo.GetFiles().Count(c => ETFFiles.BlacklistedFullFilenames.Contains(c.FullName) || MainFiles.BlacklistedFullFilenames.Contains(c.FullName));
+
+                    retVal = "Exploring: " + ETFFiles.DirectoryInfo.FullName + Environment.NewLine;
+                    retVal = retVal + "(Use ˄ or ˅ ) - Viewing File " + (index + 1) + " of " + count + " (plus " + blackListCount + " blacklisted files)";
+                }
+            }
+
+            currentExploreFolderData = retVal;
+        }
+
+
+
+        // -------------------- Navigation Stuff -------------------- //
+
+        /// <summary>
+        /// Gets the next or previous file in the FileInfo list, and calls the drawing code on it.
+        /// </summary>
+        /// <param name="fPrevious">Pass True if you want the previous file, not the next.</param>
+        private void DoPreviousOrNext(bool fPrevious)
+        {
+            // if we are in ETF mode, exit it in the correct direction
+            if (fInETFMode)
+            {
+                ExitExploreFolderMode(fPrevious);
+                return;
+            }
+
+            FileInfo file = null;
+
+            // Get the appropriate File.
+
+            // If we're going backwards...
+            if (fPrevious)
+            {
+                file = MainFiles.GetPreviousFile();
+            }
+            else // If we're going forwards...
+            {
+                // Get the next file so we can show it
+                file = MainFiles.GetNextFile();
+            }
+
+            LoadFileIntoPictureBoxAsync(file);
+        }
+
+        /// <summary>
+        /// Same as DoPreviousOrNext(), except it is called when in ETF Mode.
+        /// </summary>
+        /// <param name="fPrevious"></param>
+        private void DoETFPreviousOrNext(bool fPrevious)
+        {
+            FileInfo file;
+
+            if (fPrevious)
+            {
+                file = ETFFiles.GetPreviousFile();
+            }
+            else
+            {
+                file = ETFFiles.GetNextFile();
+            }
+
+            LoadFileIntoPictureBoxAsync(file);
+        }
+
+        /// <summary>
+        /// Enters the Explore This Folder modality.
+        /// </summary>
+        private void EnterExploreFolderMode()
+        {
+            // TODO: convert LogLine to WriteLineIf
+            Logging.LogLine("EnterExploreFolderMode(): Entering method.");
+            if (fInETFMode)
+            {
+                Logging.LogLine("    EnterExploreFolderMode(); Not Entering Explore This Folder mode, we're already in it.");
+                Logging.LogLine("EnterExploreFolderMode(): Exiting method.");
+                return;
+            }
+
+            if (fShowingEmbeddedFileImage)
+            {
+                // do nothing, we're showing an embedded resource
+                Logging.LogLine("   EnterExploreFolderMode(): called while we were displaying an embedded image, not a file. How did that happen?");
+                MessageBox.Show("Explore This Folder is not available right now.", ProductName + " - Nice Try",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Logging.LogLine("EnterExploreFolderMode(): Exiting method.");
+                return;
+            }
+
+            if (String.IsNullOrEmpty(pbMain.ImageLocation) || String.IsNullOrWhiteSpace(pbMain.ImageLocation))
+            {
+                System.Diagnostics.Debug.WriteLine("   * EnterExploreFolderMode(): Not entering Explore This Folder mode because one of these failed:" + Environment.NewLine +
+                    "String.IsNullOrEmpty(pbMainPhoto.ImageLocation) || String.IsNullOrWhiteSpace(pbMainPhoto.ImageLocation)");
+
+                System.Diagnostics.Debug.Assert((false), "   EnterExploreFolderMode():  Not entering Explore This Folder mode, as one of these failed:" + Environment.NewLine +
+                    "String.IsNullOrEmpty(pbMainPhoto.ImageLocation) || String.IsNullOrWhiteSpace(pbMainPhoto.ImageLocation)",
+                    "Safe to click Continue.");
+
+                MessageBox.Show("There has been an error. Cannot explore this folder at this time." + Environment.NewLine + Environment.NewLine +
+                "Filename: " + pbMain.ImageLocation + Environment.NewLine, ProductName + " - Error",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Logging.LogLine("EnterExploreFolderMode(): Exiting method.");
+                return;
+            }
+
+            bool fWasInSlideshowMode = ourSlideshow.IsRunning;
+            string fullFilename = pbMain.ImageLocation;
+
+            Logging.LogLine("   EnterExploreFolderMode(): Attempting to enter ETF mode for file: " + pbMain.ImageLocation);
+            Logging.LogLine("   EnterExploreFolderMode(): MainFiles CurrentIndex / Count: " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
+
+            Logging.LogLine("   EnterExploreFolderMode(): About to call MainFiles.GetFileByFullName(CurrentFileName)...");
+            FileInfo etfEntryFile = MainFiles.GetFileByFullName(fullFilename);
+            if (etfEntryFile == null)
+            {
+                Logging.LogLine("   * EnterExploreFolderMode(): etfEntryFile == null.");
+#if DEBUG
+                System.Diagnostics.Debug.Assert((false), "   EnterExploreFolderMode(): etfEntryFile == null.", "Will throw exception when you click Continue.");
+#endif
+                throw new InvalidOperationException("   EnterExploreFolderMode(): etfEntryFile == null.");
+            }
+
+            // Create a new FileInfoSource, and store it at the FormWide level
+            Logging.LogLine("   EnterExploreFolderMode(): About to create ETF object...");
+            ETFFiles = new ExploreThisFolderFileInfoSource(MainFiles, etfEntryFile);
+
+            if ((ETFFiles != null) && (ETFFiles.DirectoryInfo != null))   // if there was an error etf.DirectoryInfo will be null. Probably.
+            {
+                Logging.LogLine("   EnterExploreFolderMode(): ETF object created successfully.");
+                fInETFMode = true;
+                fWasInSlideshowModeWhenETFStarted = fWasInSlideshowMode;
+                if (fWasInSlideshowMode) ourSlideshow.Exit();
+
+                // Update text for "You are in ETF mode" indicator
+                SetExploreFolderData();
+
+            }
+            else
+            {
+                fInETFMode = false;
+                ETFFiles = null;
+                if (fWasInSlideshowMode) fWasInSlideshowModeWhenETFStarted = false;
+                if (fWasInSlideshowMode) ourSlideshow.Enter();
+
+                Logging.LogLine("   * EnterExploreFolderMode(): FAILED test: (ETFFiles != null) && (ETFFiles.DirectoryInfo != null)");
+#if DEBUG
+                System.Diagnostics.Debug.Assert((false), "   EnterExploreFolderMode(): FAILED test: (ETFFiles != null) && (ETFFiles.DirectoryInfo != null).", "Will throw exception when you click Continue.");
+                throw new InvalidOperationException("   EnterExploreFolderMode(): FAILED test: (ETFFiles != null) && (ETFFiles.DirectoryInfo != null).");
+#else
+
+                MessageBox.Show("There has been an error. Cannot explore this folder at this time." + Environment.NewLine + Environment.NewLine +
+                    "Filename: " + pbMainPhoto.ImageLocation + Environment.NewLine, ProductName + " - Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+#endif
+            }
+
+            Logging.LogLine("   EnterExploreFolderMode(): Entered ETF mode for file: " + fullFilename);
+            Logging.LogLine("   EnterExploreFolderMode(): ETFFiles CurrentIndex / Count: " + ETFFiles.CurrentIndex + " / " + ETFFiles.Count);
+
+            // Tell PictureBox to update so new text will be drawn
+            pbMain.Invalidate();
+            Logging.LogLine("EnterExploreFolderMode(): Exiting method.");
+
+        }
+
+        /// <summary>
+        /// Exits Explore This Folder mode, in the direction specified in fPrevious.
+        /// </summary>
+        /// <param name="fPrevious"></param>
+        private void ExitExploreFolderMode(bool fPrevious, bool fExternallyCalled = false)
+        {
+            // TODO: convert LogLine to WriteLineIf
+            Logging.LogLine("ExitExploreFolderMode(): Entering method, fExternallyCalled = " + fExternallyCalled);
+
+            if (fInETFMode)
+            {
+                Logging.LogLine("   ExitExploreFolderMode(): MainFile CurrentIndex / Count: " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
+                Logging.LogLine("   ExitExploreFolderMode(): exiting mode by going " + ((fPrevious) ? "backwards." : "forwards."));
+
+                // Kill off the ETF object
+                ETFFiles = null;
+                fInETFMode = false;
+
+                // Get the file in the direction passed to us
+                Logging.LogLine("   ExitExploreFolderMode(): about to call DoPreviousOrNext(fPrevious)...");
+                DoPreviousOrNext(fPrevious);
+                Logging.LogLine("   ExitExploreFolderMode(): After DoPreviousOrNext(), MainFiles CurrentIndex / Count: " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
+
+                // Restart the slideshow if necessary
+                Logging.LogLine("   ExitExploreFolderMode(): about to restart slideshow, if necessary.");
+                if (fWasInSlideshowModeWhenETFStarted) ourSlideshow.Enter();
+            }
+            else
+            {
+                Logging.LogLine("ExitExploreFolderMode(): Not exiting mode, as we were not in ETF mode.");
+            }
+            Logging.LogLine("ExitExploreFolderMode(): Exiting method.");
+        }
+
+        /// <summary>
+        /// Called when user hits Up arrow key on keyboard.
+        /// </summary>
+        private void DoArrowKeyUp()
+        {
+            bool fDebugOutput = true;
+            bool fDebugOutputTraceLevel = false;
+            bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
+
+            Debug.WriteLineIf(fDebugTrace, "DoArrowKeyUp(): Entering.");
+
+            if (fWaitingForFileToLoad)
+            {
+                // do nothing
+                Debug.WriteLineIf(fDebugOutput, "   DoArrowKeyUp(): Ignoring key, still waiting for file to load.");
+                return;
+            }
+
+
+            if (fInETFMode) // we're already in mode, so we must want next file
+            {
+                DoETFPreviousOrNext(false);
+            }
+            else
+            {
+                if (ourSlideshow.IsRunning)
+                {
+                    fWasInSlideshowModeWhenETFStarted = true;
+                    ourSlideshow.Exit();
+                }
+
+                EnterExploreFolderMode();
+            }
+
+            Debug.WriteLineIf(fDebugTrace, "DoArrowKeyUp(): Exiting.");
+        }
+
+        /// <summary>
+        /// Called when user hits Down arrow key on keyboard.
+        /// </summary>
+        private void DoArrowKeyDown()
+        {
+            bool fDebugOutput = true;
+            bool fDebugOutputTraceLevel = false;
+            bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
+
+            Debug.WriteLineIf(fDebugTrace, "DoArrowKeyDown(): Entering.");
+
+            if (fWaitingForFileToLoad)
+            {
+                // do nothing
+                Debug.WriteLineIf(fDebugOutput, "   DoArrowKeyDown(): Ignoring key, still waiting for file to load.");
+                return;
+            }
+
+
+            if (fInETFMode) // we're already in mode, so we must want next file
+            {
+                DoETFPreviousOrNext(true);
+            }
+            else
+            {
+                if (ourSlideshow.IsRunning)
+                {
+                    fWasInSlideshowModeWhenETFStarted = true;
+                    ourSlideshow.Exit();
+                }
+
+                EnterExploreFolderMode();
+            }
+            Debug.WriteLineIf(fDebugTrace, "DoArrowKeyDown(): Exiting.");
+        }
+
+        /// <summary>
+        /// Called when user hits Left arrow key on keyboard.
+        /// </summary>
+        private void DoArrowKeyLeft()
+        {
+            bool fDebugOutput = true;
+            bool fDebugOutputTraceLevel = false;
+            bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
+
+            Debug.WriteLineIf(fDebugTrace, "DoArrowKeyLeft(): Entering.");
+
+            // we need to either:
+            // 0. If in a state where we should just ignore the key, do that
+            // 1. if not in slideshow mode, just go to previous photo
+            // 2. if we're in slideshow mode, defer it, so that the user can view current photo longer; 
+            // 3. if we're actually already in defer mode, force previous photo immediately
+
+            if (fWaitingForFileToLoad)
+            {
+                // do nothing
+                Debug.WriteLineIf(fDebugOutput, "   DoArrowKeyLeft(): Ignoring key, still waiting for file to load.");
+                return;
+            }
+
+            if (ourSlideshow.IsRunning)
+            {
+                if (ourSlideshow.Defer()) // returns false if left arrow keys struck close to each other
+                {
+                    // we just deferred
+                    Debug.WriteLineIf(fDebugTrace, "   DoArrowKeyLeft(): Defer returned true.");
+                    return;
+                }
+                else
+                {
+                    // user pressed left key twice in a row
+                    Debug.WriteLineIf(fDebugTrace, "   DoArrowKeyLeft(): Defer returned false, DoPreviousOrNext() will be called.");
+                    ourSlideshow.Exit();
+                    DoPreviousOrNext(true);
+                    ourSlideshow.Enter();
+                    return;
+                }
+            }
+            else
+            {
+                DoPreviousOrNext(true);
+            }
+
+            Debug.WriteLineIf(fDebugTrace, "DoArrowKeyLeft(): Exiting.");
+        }
+
+        /// <summary>
+        /// Called when user hits Right arrow key on keyboard.
+        /// </summary>
+        private void DoArrowKeyRight()
+        {
+            bool fDebugOutput = true;
+            bool fDebugOutputTraceLevel = false;
+            bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
+
+            Debug.WriteLineIf(fDebugTrace, "DoArrowKeyRight(): Entering.");
+
+            // we need to either:
+            // 0. If in a state where we should just ignore the key, do that
+            // 1. if not in slideshow mode, just go to next photo
+            // 2. if we're in slideshow mode, force next photo immediately, and reset any slideshow mode stuff we need to
+
+            if (fWaitingForFileToLoad)
+            {
+                // do nothing
+                Debug.WriteLineIf(fDebugOutput, "   DoArrowKeyRight(): Ignoring key, still waiting for file to load.");
+                return;
+            }
+
+            if (ourSlideshow.IsRunning)
+            {
+                ourSlideshow.Exit();
+                DoPreviousOrNext(false);
+                ourSlideshow.Enter();
+                return;
+            }
+            else
+            {
+                DoPreviousOrNext(false);
+            }
+            Debug.WriteLineIf(fDebugTrace, "DoArrowKeyRight(): Exiting.");
+        }
+
+        /// <summary>
+        /// Marks the current file as "Do not display", then navigates to next file.
+        /// </summary>
+        private void DoBlacklistCurrentFile()
+        {
+
+            bool fDebugOutput = true;
+            bool fDebugOutputTraceLevel = true;
+            bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
+
+            Debug.WriteLineIf(fDebugTrace, "DoBlacklistFile(): Entering method.");
+
+            // ------------  Let's Try To Get Out of Doing It  ------------ //
+
+            if (fShowingEmbeddedFileImage)
+            {
+                // do nothing, we're showing an embedded resource
+                Debug.WriteLineIf(fDebugTrace, "   * DoBlacklistFile(): called while we were displaying an embedded image, not a file.");
+                Debug.WriteLineIf(fDebugTrace, "DoBlacklistFile(): Exiting method.");
+                MessageBox.Show("You cannot blacklist this Picture.", ProductName + " - Nice Try",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            if (String.IsNullOrEmpty(pbMain.ImageLocation) || String.IsNullOrWhiteSpace(pbMain.ImageLocation))
+            {
+                Debug.WriteLineIf(fDebugOutput, "   * DoBlacklistFile(): Aborting, as one of these failed:" + Environment.NewLine +
+                    "String.IsNullOrEmpty(pbMainPhoto.ImageLocation) || String.IsNullOrWhiteSpace(pbMainPhoto.ImageLocation)");
+
+                System.Diagnostics.Debug.Assert((false), "   DoBlacklistFile(): Aborting, as one of these failed:" + Environment.NewLine +
+                    "String.IsNullOrEmpty(pbMainPhoto.ImageLocation) || String.IsNullOrWhiteSpace(pbMainPhoto.ImageLocation)",
+                    "Please click Continue.");
+
+                MessageBox.Show("There has been an error. This Picture cannot be blacklisted." + Environment.NewLine + Environment.NewLine +
+                "Filename: " + pbMain.ImageLocation + Environment.NewLine, ProductName + " - Error",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Debug.WriteLineIf(fDebugTrace, "DoBlacklistFile(): Exiting method.");
+                return;
+            }
+
+            if (MessageBox.Show("Never show this picture again?" + Environment.NewLine + Environment.NewLine +
+                        "Filename: " + pbMain.ImageLocation + Environment.NewLine, ProductName + " - Blacklist this Picture?",
+                        MessageBoxButtons.OKCancel, MessageBoxIcon.Question) == System.Windows.Forms.DialogResult.Cancel)
+            {
+                Debug.WriteLineIf(fDebugTrace, "DoBlacklistFile(): Exiting method.");
+                return;
+            }
+
+            // ------------  Okay, Then Let's Get To Work  ------------ //
+
+            if (fInETFMode)
+            {
+                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): ETF CurrentIndex / Count : " + ETFFiles.CurrentIndex + " / " + ETFFiles.Count);
+                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): Main CurrentIndex / Count : " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
+                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): About to call ETF.GetFileByFullName(CurrentFileName)...");
+
+                // get a FileInfo block from current file
+                FileInfo etfFileToBeBlacklisted = ETFFiles.GetFileByFullName(pbMain.ImageLocation);
+                FileInfo mainFileToBeBlacklisted = MainFiles.GetFileByFullName(pbMain.ImageLocation);
+
+                if (etfFileToBeBlacklisted == null)
+                {
+                    Debug.WriteLineIf(fDebugOutput, "   * DoBlacklistFile(): etfFileToBeBlacklisted == null.");
+#if DEBUG
+                    System.Diagnostics.Debug.Assert((false), "   DoBlacklistFile(): etfFileToBeBlacklisted == null.", "Will throw exception when you click Continue.");
+#endif
+                    throw new InvalidOperationException("   DoBlacklistFile(): etfFileToBeBlacklisted == null.");
+                }
+
+                if (mainFileToBeBlacklisted == null)
+                {
+                    Debug.WriteLineIf(fDebugOutput, "   * DoBlacklistFile(): mainFileToBeBlacklisted == null.");
+#if DEBUG
+                    System.Diagnostics.Debug.Assert((false), "   DoBlacklistFile(): mainFileToBeBlacklisted == null.", "Will throw exception when you click Continue.");
+#endif
+                    throw new InvalidOperationException("   DoBlacklistFile(): mainFileToBeBlacklisted == null.");
+                }
+
+                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): fileToBeBlacklisted located at ETFIndex / MainIndex : " +
+                    ETFFiles.IndexOf(etfFileToBeBlacklisted) + " / " + MainFiles.IndexOf(mainFileToBeBlacklisted));
+
+                // blacklist the file in the ETFIS list
+                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): About to call ETF.BlacklistCurrentFile()...");
+                FileInfo nextFile; // unused, but required for next method
+
+                if (ETFFiles.BlacklistCurrentFile(out nextFile))
+                {
+                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): ETF.BlacklistCurrentFile() reports success.");
+                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): ETF CurrentIndex / Count : " + ETFFiles.CurrentIndex + " / " + ETFFiles.Count);
+                }
+                else
+                {
+                    Debug.WriteLineIf(fDebugOutput, "   * DoBlacklistFile(): ETF.BlacklistCurrentFile() reports FAILURE.");
+#if DEBUG
+                    System.Diagnostics.Debug.Assert((false), "   DoBlacklistFile(): ETF.BlacklistCurrentFile() reports FAILURE.", "Will throw exception if you click Continue.");
+                    throw new InvalidOperationException("   DoBlacklistFile(): ETF.BlacklistCurrentFile() reports FAILURE.");
+#else
+                            MessageBox.Show("Could not blacklist this Picture, an error occurred." + Environment.NewLine + Environment.NewLine +
+                            "Filename: " + pbMainPhoto.ImageLocation + Environment.NewLine, ProductName + "Error",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return;
+#endif
+                }
+
+#if DEBUG
+                // For the hell of it, validate nextFile, even though we will not use it
+                if (nextFile != null)
+                {
+                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): BlacklistCurrentFile() offers us as nextFile (which we will ignore): " + nextFile.FullName);
+                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): nextFile located at MainIndex : " + ETFFiles.IndexOf(nextFile));
+                }
+                else
+                {
+                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): BlacklistCurrentFile() offers us nextFile == NULL. In theory this means that ETFFiles is now empty. Is it?");
+                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): Main CurrentIndex / Count : " + ETFFiles.CurrentIndex + " / " + ETFFiles.Count);
+                }
+#endif
+
+                // Now, remove the file from the Main List
+                if (!MainFiles.RemoveBlacklistedETFFile(mainFileToBeBlacklisted))
+                {
+                    Debug.WriteLineIf(fDebugOutput, "   * DoBlacklistFile(): MainFiles.RemoveBlacklistedETFFile(mainFileToBeBlacklisted) FAILED.");
+#if DEBUG
+                    System.Diagnostics.Debug.Assert((false), "   DoBlacklistFile(): MainFiles.RemoveBlacklistedETFFile(mainFileToBeBlacklisted) FAILED.", "Will throw exception if you click Continue.");
+#endif
+                    Debug.WriteLineIf(fDebugOutput, "   DoBlacklistFile(): After Failure, Main CurrentIndex / Count : " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
+                    throw new InvalidOperationException("   DoBlacklistFile(): MainFiles.RemoveBlacklistedETFFile(mainFileToBeBlacklisted) FAILED.");
+                }
+                else
+                {
+                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): After removal of mainFileToBeBlacklisted, Main CurrentIndex / Count : " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
+                }
+
+                // If ETFFiles is now empty, exit Explore mode
+                if (ETFFiles.Count < 1)
+                {
+                    Logging.LogLine("   * DoBlacklistFile(): ETFFiles is now empty, so forcing exit of ETF Mode.");
+                    ExitExploreFolderMode(false, true);
+                    return;
+                }
+
+                // Draw the file from the ETF list
+                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): About to call ETFFiles.GetCurrentFile()...");
+                FileInfo etfToBeDrawn = ETFFiles.GetCurrentFile();
+#if DEBUG
+                if (etfToBeDrawn == null)
+                {
+                    Debug.WriteLineIf(fDebugOutput, "   *DoBlacklistFile(): etf.GetCurrentFile() returned NULL.  No image will be drawn.");
+                    System.Diagnostics.Debug.Assert((false), "   DoBlacklistFile():  etf.GetCurrentFile() returned NULL.  No image will be drawn.", "Will throw exception if you click Continue.");
+                    throw new InvalidOperationException("   DoBlacklistFile():  etf.GetCurrentFile() returned NULL.  No image will be drawn.");
+                }
+#endif
+
+                FileInfo mainToBeDrawn = MainFiles.GetFileByFullName(etfToBeDrawn.FullName);
+#if DEBUG
+                if (mainToBeDrawn == null)
+                {
+                    Debug.WriteLineIf(fDebugOutput, "   * DoBlacklistFile(): MainFiles.GetFileByFullName(etfToBeDrawn.FullName) returned NULL. " +
+                        "There is no file in the MainFiles list that matches the file we are drawing from the ETFFiles list.");
+                    System.Diagnostics.Debug.Assert((false), "   DoBlacklistFile():  MainFiles.GetFileByFullName(etfToBeDrawn.FullName) returned NULL. " +
+                        "There is no file in the MainFiles list that matches the file we are drawing from the ETFFiles list.", "Will throw exception if you click Continue.");
+                    throw new InvalidOperationException("   DoBlacklistFile():  MainFiles.GetFileByFullName(etfToBeDrawn.FullName) returned NULL.");
+                }
+#endif
+
+                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): ETFFiles.GetCurrentFile() result located at ETFIndex / MainIndex : " +
+                    ETFFiles.IndexOf(etfToBeDrawn) + " / " + MainFiles.IndexOf(mainToBeDrawn));
+
+                // Even if files were null, we draw anyway. Drawing Code handles it.
+                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): About to call DrawImageFromFile(result)...");
+                LoadFileIntoPictureBoxAsync(etfToBeDrawn);
+
+#if DEBUG
+                // Just out of curiousity...
+                if (nextFile != null && etfToBeDrawn != null)
+                {
+                    if (nextFile.FullName != etfToBeDrawn.FullName)
+                    {
+                        Debug.WriteLineIf(fDebugOutput, "     DoBlacklistFile(): Weird, but safe - nextFile.FullName != result.FullName. How did that happen?");
+                    }
+                }
+#endif
+            }
+
+            else        // In Main Mode
+            {
+                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): Main CurrentIndex / Count : " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
+                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): About to call Main.GetFileByFullName(pbMainPhoto.ImageLocation)...");
+
+                // get a FileInfo block from current file
+                FileInfo fileToBeBlacklisted = MainFiles.GetFileByFullName(pbMain.ImageLocation);
+
+                if (fileToBeBlacklisted == null)
+                {
+                    Debug.WriteLineIf(fDebugOutput, "   * DoBlacklistFile(): fileToBeBlacklisted == null.");
+#if DEBUG
+                    System.Diagnostics.Debug.Assert((false), "   DoBlacklistFile(): fileToBeBlacklisted == null.", "Will throw exception if you click Continue.");
+#endif
+                    throw new InvalidOperationException("   DoBlacklistFile(): fileToBeBlacklisted == null.");
+                }
+                else
+                {
+                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): fileToBeBlacklisted located at MainIndex : " + MainFiles.IndexOf(fileToBeBlacklisted));
+                }
+
+                // blacklist the file in the Main list
+                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): About to call Main.BlacklistCurrentFile()...");
+                FileInfo nextFile; // unused, but required for next method
+
+                if (MainFiles.BlacklistCurrentFile(out nextFile))
+                {
+                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): MainFiles.BlacklistCurrentFile() reports success.");
+                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): MainFiles CurrentIndex / Count : " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
+                }
+                else
+                {
+                    Debug.WriteLineIf(fDebugOutput, "   * DoBlacklistFile(): MainFiles.BlacklistCurrentFile() reports FAILURE.");
+#if DEBUG
+                    System.Diagnostics.Debug.Assert((false), "   DoBlacklistFile(): MainFiles.BlacklistCurrentFile() reports FAILURE.", "Will throw exception if you click Continue.");
+                    throw new InvalidOperationException("   DoBlacklistFile(): MainFiles.BlacklistCurrentFile() reports FAILURE.");
+#else
+                            MessageBox.Show("Could not blacklist this Picture, an error occurred." + Environment.NewLine + Environment.NewLine +
+                            "Filename: " + pbMainPhoto.ImageLocation + Environment.NewLine, ProductName + "Error",
+                            MessageBoxButtons.OK);
+                            return;
+#endif
+                }
+
+#if DEBUG
+                // Just for the hell of it, let's validate nextFile, even though we will not use it
+                if (nextFile != null)
+                {
+                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): BlacklistCurrentFile() offers us as nextFile (which we will ignore): " + nextFile.FullName);
+                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): nextFile located at MainIndex : " + MainFiles.IndexOf(nextFile));
+                }
+                else
+                {
+                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): BlacklistCurrentFile() offers us as nextFile NULL. In theory this means that MainFiles is now empty. Is it?");
+                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): Main CurrentIndex / Count : " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
+                }
+#endif
+
+                // And then draw the current Main file
+                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): About to call MainFiles.GetCurrentFile()...");
+                FileInfo toDraw = MainFiles.GetCurrentFile();
+
+                // Null is only unexpected if MainFiles is not empty
+                if (toDraw == null && MainFiles.Count != 0)
+                {
+                    Debug.WriteLineIf(fDebugOutput, "   * DoBlacklistFile(): MainFiles.GetCurrentFile() result == null.");
+#if DEBUG
+                    System.Diagnostics.Debug.Assert((false), "   DoBlacklistFile(): MainFiles.GetCurrentFile() result == null.", "Will throw exception if you click Continue.");
+                    throw new InvalidOperationException("   DoBlacklistFile(): MainFiles.GetCurrentFile() result == null.");
+#endif
+                }
+                else
+                {
+                    if (toDraw != null)
+                    {
+                        Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): MainFiles.GetCurrentFile() result located at MainIndex : " +
+                           MainFiles.IndexOf(toDraw));
+                    }
+                }
+
+                // Even if files were null, we draw anyway. Drawing Code handles it.
+                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): About to call GetImageFromFileAndLoadAsync(result)...");
+                LoadFileIntoPictureBoxAsync(toDraw);
+
+#if DEBUG
+                // Just out of curiousity...
+                if (nextFile != null && toDraw != null)
+                {
+                    if (nextFile.FullName != toDraw.FullName)
+                    {
+                        Debug.WriteLineIf(fDebugOutput, "     DoBlacklistFile(): Weird, but safe - nextFile.FullName != result.FullName. How did that happen?");
+                    }
+                }
+#endif
+            }
+
+            Debug.WriteLineIf(fDebugTrace, "DoBlacklistFile(): Entering method.");
+        }
+
+
+
+
+        // -------------------- Lifecycle Stuff -------------------- //
+
+        private void DoSettingsDialog()
+        {
+            // pause became redundant with our activation/deactivation code;
+            // restore this code if we remove the activation/deactivation logic
+
+            //// Pause the slideshow if necessary
+            //bool fWasSlideshowMode = false;
+            //if (fSlideshowMode)
+            //{
+            //    fWasSlideshowMode = true;
+            //    ExitSlideshowMode();
+            //}
+
+            // Create the settings form and show it as a modal dialog.
+            // Doing it all in one statement like this causes the Settings form to be created, used,
+            // disposed of, and all references to it nulled, all in one line.
+
+            settingsForm = new Settings(true, this);
+            settingsForm.Owner = this;
+
+            //if ((new Settings(true, this)).ShowDialog(this.Owner) == System.Windows.Forms.DialogResult.Retry)
+            if (settingsForm.ShowDialog(this) == System.Windows.Forms.DialogResult.Retry)
+            {
+                // User changed something that requires a rebuild of the file list.
+                MainFiles.Rebuild((List<DirectoryInfo>)SettingsInfo.GetListOfDirectoryInfo(), SettingsInfo.GetBlacklistedFullFilenames(), SettingsInfo.UseRecursion, SettingsInfo.ShuffleMode);
+
+                // Don't go back to an old stale pic. Force ourselves to get a new one.
+                DoPreviousOrNext(false);
+            }
+
+            // dispose of the form, since we create a new one every time
+            settingsForm.Dispose();
+
+            // update the slideshow data, just in case
+            ourSlideshow.IntervalInMilliSeconds = SettingsInfo.SlideshowIntervalInSecs * 1000;
+            ourSlideshow.DeferralTimeWindowInMilliseconds = 1500;
+            ourSlideshow.DeferralIntervalInMilliseconds = ourSlideshow.IntervalInMilliSeconds;
+
+            // pause became redundant with our activation/deactivation code;
+            // restore this code if we remove the activation/deactivation logic
+
+            //// Resume the slideshow if necessary
+            //if (fWasSlideshowMode)
+            //{
+            //    EnterSlideshowMode();
+            //}
+        }
+
+        private void DoHelpAboutDialog()
+        {
+            // Pause the slideshow if necessary
+            bool fWasSlideshowMode = false;
+            if (ourSlideshow.IsRunning)
+            {
+                fWasSlideshowMode = true;
+                ourSlideshow.Exit();
+            }
+
+            // Create the form and show it as a modal dialog.
+            // Doing it all in one statement like this causes the form to be created, used,
+            // disposed of, and all references to it nulled, all in one line.
+            if ((new HelpAbout(true, this)).ShowDialog(this.Owner) == System.Windows.Forms.DialogResult.OK)
+            {
+                // do nothing for now
+            }
+
+            // Resume the slideshow if necessary
+            if (fWasSlideshowMode)
+            {
+                ourSlideshow.Enter();
+            }
+        }
+
+        private void EnterScreenSaverWindowStyle()
+        {
+            fInWindowStyleChange = true;
+
+            this.ShowIcon = false;
+            this.MaximizeBox = false;
+            this.MinimizeBox = false;
+            this.ControlBox = false;
+            this.ShowInTaskbar = false;
+            this.TopMost = true;
+            this.FormBorderStyle = FormBorderStyle.None;
+            this.WindowState = FormWindowState.Maximized;
+
+            fScreenSaverWindowStyle = true;
+            fInWindowStyleChange = false;
+
+        }
+
+        private void ExitScreenSaverWindowStyle(bool UseSavedWindowPosition = false)
+        {
+            fInWindowStyleChange = true;
+
+            this.ShowIcon = true;
+            this.MaximizeBox = true;
+            this.MinimizeBox = true;
+            this.ControlBox = true;
+            this.ShowInTaskbar = true;
+            this.TopMost = false;
+            this.WindowState = FormWindowState.Normal;
+            this.FormBorderStyle = FormBorderStyle.Sizable;
+
+            if (UseSavedWindowPosition)
+            {
+                this.Location = SettingsInfo.dbgLastWindowLocationPoint;
+                this.Size = SettingsInfo.dbgLastWindowSize;
+            }
+
+            fScreenSaverWindowStyle = false;
+            fInWindowStyleChange = false;
+        }
+
+        private void ToggleScreenSaverWindowStyle()
+        {
+            if (fScreenSaverWindowStyle)
+            {
+                ExitScreenSaverWindowStyle();
+            }
+            else
+            {
+                EnterScreenSaverWindowStyle();
+            }
+        }
+
+        private void ToggleShowMetadata()
+        {
+            SettingsInfo.ShowMetadata = !SettingsInfo.ShowMetadata;
+            pbMain.Invalidate();
+        }
+
+        private void OpenFileExplorer(string FullFilename)
+        {
+            string args = @"/n, /select," + "\"" + FullFilename + "\"";
+
+            System.Diagnostics.Process.Start("explorer.exe", args);
+
+        }
+
+        private void DoQuit()
+        {
+            this.Close();
+        }
+
+
+
+        // -------------------- Handling Of Screen Text -------------------- //
+
+        //private void InitializeTextDrawing()
+        //{
+        //    // fill the list of colors with all known, non-system colors
+        //    colors.Clear();
+        //    foreach (KnownColor kc in (KnownColor[])Enum.GetValues(typeof(KnownColor)))
+        //    {
+        //        if (!Color.FromKnownColor(kc).IsSystemColor)
+        //        {
+        //            colors.Add(Color.FromKnownColor(kc));
+        //        }
+        //    }
+
+        //    //Logging.LogLine("Count of colors in list: " + colors.Count + ", and here they are:");
+
+        //    //for (int i = 0; i < colors.Count; i++)
+        //    //{
+        //    //    Logging.LogLine(colors[i].ToString() + "  " + i);
+        //    //}
+        //    Hints.Clear();
+        //    Hints.Add(TextRenderingHint.AntiAlias);
+        //    Hints.Add(TextRenderingHint.AntiAliasGridFit);
+
+        //    if (IsClearTypeEnabled())
+        //    {
+        //        Hints.Add(TextRenderingHint.ClearTypeGridFit);
+        //        hintsIndex = 2;
+        //    }
+        //    else
+        //    {
+        //        hintsIndex = 1;
+        //    }
+        //    Logging.LogLine("Today we'll be using the hightest TextRenderingHint." + Hints[hintsIndex].ToString());
+
+        //    //foreach (TextRenderingHint tr in (TextRenderingHint[])Enum.GetValues(typeof(TextRenderingHint)))
+        //    //{
+        //    //    Hints.Add(tr);
+        //    //}
+
+        //    //Logging.LogLine("Count of Hints in list: " + Hints.Count + ", and here they are:");
+
+        //    //for (int i = 0; i < Hints.Count; i++)
+        //    //{
+        //    //    Logging.LogLine(Hints[i].ToString() + "  " + i);
+        //    //}
+
+        //    UseShadowing = true;
+        //    colorsIndex = 3;
+        //    contrast = 0;
+        //    hintsIndex = Hints.Count - 1;
+
+        //}
+
+        private void PaintText(PaintEventArgs e)
+        {
+            bool fDebugOutput = true;
+            bool fDebugOutputTraceLevel = false;
+            bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
+
+            Debug.WriteLineIf(fDebugTrace, "PaintText(): entering.");
+
+            // Retrieve the graphics object.
+            Graphics formGraphics = e.Graphics;
+
+            // Change the TextRenderingHint property (we set this var at Load)
+            formGraphics.TextRenderingHint = metaFontData.TextRenderingHint;
+
+            // Set the text contrast (we set this var at Load).
+            formGraphics.TextContrast = metaFontData.ContrastLevel;
+
+            // Build the fonts
+            BuildMetaFontFromFontData();
+            BuildETFFontFromFontData();
+            Brush shadowBrush = new SolidBrush(shadowBrushColor);
+
+            // Draw the Folder text if appropriate
+            float adjustedMetadataTop = metadataTop;
+            if (fInETFMode)
+            {
+                // Push the metadata text down based on font size
+                if (metaFontData.FontSize > 38)
+                {
+                    adjustedMetadataTop = (float)((ETFtoMetadataOffsetBase * 2) + (metaFontData.FontSize * 2.8));
+                }
+                else
+                {
+                    adjustedMetadataTop = (float)(ETFtoMetadataOffsetBase + (metaFontData.FontSize * 2.8));
+                }
+
+                // Draw the shadowing if appropriate
+                if (metaFontData.Shadowing)
+                {
+                    formGraphics.DrawString(currentExploreFolderData, etfFont,
+                        shadowBrush, allTextLeft + 1, ETFdataTop + 1);
+                }
+                // then draw the font
+                formGraphics.DrawString(currentExploreFolderData, etfFont,
+                    etfBrush, allTextLeft, ETFdataTop);
+            }
+
+            // Draw the metadata if appropriate
+            // TODO: Direct read from ConfigSettings field.  Consider replacing with a method or property.
+            if (SettingsInfo.ShowMetadata)
+            {
+                if (metaFontData.Shadowing)
+                {
+                    formGraphics.DrawString(currentImageMetadata, metaFont,
+                        shadowBrush, allTextLeft + 1, adjustedMetadataTop + 1);
+                }
+
+                formGraphics.DrawString(currentImageMetadata, metaFont,
+                    metaBrush, allTextLeft, adjustedMetadataTop);
+            }
+
+            // Dispose of any resources we created in this method
+            shadowBrush.Dispose();
+
+            Debug.WriteLineIf(fDebugTrace, "PaintText(): exiting.");
+
+        }
+
+        private void DoFontDialog()
+        {
+            FormatFontDialogFromFontData(metaFontData);
+            fontdlg.ShowApply = true;
+            fontdlg.ShowColor = true;
+
+            DialogResult dr = fontdlg.ShowDialog();
+            if (dr == System.Windows.Forms.DialogResult.OK)
+            {
+                if (metaFontData.SetPropertiesFromFontDlg(fontdlg))
+                {
+                    pbMain.Invalidate();
+                }
+            }
+        }
+
+        private void DoColorDialog()
+        {
+            // Configure the color dialog
+            colordlg.AllowFullOpen = true;
+            colordlg.AnyColor = true;
+            colordlg.FullOpen = true;
+
+            // Show the Color Dialog
+            DialogResult dr = colordlg.ShowDialog();
+            if (dr == System.Windows.Forms.DialogResult.OK)
+            {
+                metaFontData.SetColorFromColorDlg(colordlg);
+                pbMain.Invalidate();
+            }
+        }
+
+        private void BuildMetaFontFromFontData()
+        {
+            if (metaFont != null)
+            {
+                metaFont.Dispose();
+                metaFont = null;
+            }
+            if (metaBrush != null)
+            {
+                metaBrush.Dispose();
+                metaBrush = null;
+            }
+
+            metaFont = new Font(metaFontData.FontName, metaFontData.FontSize, metaFontData.FontStyle);
+            metaBrush = new SolidBrush(Color.FromName(metaFontData.FontColorName));
+        }
+
+        private void BuildETFFontFromFontData()
+        {
+            if (etfFont != null)
+            {
+                etfFont.Dispose();
+                etfFont = null;
+            }
+
+            etfFont = new Font(metaFontData.FontName, metaFontData.FontSize, metaFontData.FontStyle);
+        }
+
+        private void SetFontDataFromConfigData()
+        {
+            // metaFontData.AllowNonAntiAliasedFonts = ConfigSettings.metaDataFont_allowNonAntiAliased;
+            metaFontData.ContrastLevel = SettingsInfo.metaDataFont_contrastLevel;
+            metaFontData.FontColorName = SettingsInfo.metaDataFont_fontColorName;
+            metaFontData.FontName = SettingsInfo.metaDataFont_fontName;
+            metaFontData.FontSize = SettingsInfo.metaDataFont_fontSize;
+            metaFontData.FontStyle = SettingsInfo.metaDataFont_fontStyle;
+            metaFontData.MaxFontSize = SettingsInfo.metaDataFont_maxFontSize;
+            metaFontData.MinFontSize = SettingsInfo.metaDataFont_minFontSize;
+            metaFontData.Shadowing = SettingsInfo.metaDataFont_shadowing;
+            metaFontData.SetTextRenderingHint(SettingsInfo.metaDataFont_textRenderingHint);
+        }
+
+        private void FormatFontDialogFromFontData(FontData fontData)
+        {
+            if (fdFont != null)
+            {
+                fdFont.Dispose();
+                fdFont = null;
+            }
+            fdFont = new Font(fontData.FontName, fontData.FontSize, fontData.FontStyle);
+            fontdlg.Font = fdFont;
+            fontdlg.Color = Color.FromName(fontData.FontColorName);
+        }
+
+        private void DoRestoreTextValuesToLoadedValues()
+        {
+            // Initialize Values, in case there are no saved values
+            metaFontData = new FontData();
+
+            // Now overwrite those values with saved values
+            SetFontDataFromConfigData();
+            pbMain.Invalidate();
+
+            Logging.LogLine("Metadata now being drawn with default values, not loaded from saved.");
+        }
+
+        private void DoUpdateFontColor(int delta)
+        {
+            metaFontData.IncrementOrDecrementFontColorName(delta < Math.Abs(delta), true);
+            pbMain.Invalidate();
+        }
+
+        private void DoUpdateFontSize(int delta)
+        {
+            metaFontData.IncrementOrDecrementFontSize(delta < Math.Abs(delta));
+            pbMain.Invalidate();
+        }
+
+        private void UpdateConfigSettingsFromMetaFontData()
+        {
+            SettingsInfo.metaDataFont_allowNonAntiAliased = metaFontData.AllowNonAntiAliasedFonts;
+            SettingsInfo.metaDataFont_contrastLevel = metaFontData.ContrastLevel;
+            SettingsInfo.metaDataFont_fontColorName = metaFontData.FontColorName;
+            SettingsInfo.metaDataFont_fontName = metaFontData.FontName;
+            SettingsInfo.metaDataFont_fontSize = metaFontData.FontSize;
+            SettingsInfo.metaDataFont_fontStyle = metaFontData.FontStyle;
+            SettingsInfo.metaDataFont_maxFontSize = metaFontData.MaxFontSize;
+            SettingsInfo.metaDataFont_minFontSize = metaFontData.MinFontSize;
+            SettingsInfo.metaDataFont_shadowing = metaFontData.Shadowing;
+            SettingsInfo.metaDataFont_textRenderingHint = metaFontData.TextRenderingHint;
+        }
+
+
+
+        // -------------------- Stuff We're Not Using Yet -------------------- //
+
+        #region Experimental Things
+
+        private void MessingAround()
+        {
+
+            // Color avg = Color.Black;
+
+            //using (Bitmap bmp =
+            //  new Bitmap(pbMainPhoto.ClientSize.Width, pbMainPhoto.ClientSize.Height))
+            //{
+            //    pbMainPhoto.DrawToBitmap(bmp, pbMainPhoto.ClientRectangle);
+            //    // bmp.Save(yourfilename.png);
+            //    avg = CalculateAverageColor(bmp, 20, 20, 200, 30);
+            //    //avg = CalculateAverageColor(bmp);
+            //}
+
+            //        // Point pointy = new Point(DisplayContainer.Left, DisplayContainer.Top);
+            //        //if ((NativeMethods.ClientToScreen(this.Handle, ref pointy)) && (pointy != null))
+            //        //{
+            //        //    using (Graphics graphics = Graphics.FromImage(bm))
+            //        //    {
+            //        //        graphics.CopyFromScreen(pointy.X, pointy.Y, 0, 0, new Size(DisplayContainer.Width, DisplayContainer.Height), CopyPixelOperation.SourceCopy);
+            //        //        clr = CalculateAverageColor(bm);
+
+            //Point pointy = new Point(pbMainPhoto.Left, pbMainPhoto.Top);
+            //Bitmap bm = new Bitmap(400,90,pbMainPhoto.Image.PixelFormat);
+            //if ((NativeMethods.ClientToScreen(this.Handle, ref pointy)) && (pointy != null))
+            //{
+            //    using (Graphics graphics = Graphics.FromImage(bm))
+            //    {
+            //        graphics.CopyFromScreen(pointy.X, pointy.Y, 0, 0, new Size(400, 90), CopyPixelOperation.SourceCopy);
+            //        avg = CalculateAverageColor(bm);
+            //        Logging.LogLine("AverageColor was: " + avg.ToString());
+            //    }
+            //}
+            //else
+            //{
+            //    Logging.LogLine("ClientToScreen(): failed or was null.");
+            //}
+        }
+
+        private Color GetContrastingFontColor(Color AverageColorOfBitmap, List<Color> FavoriteColors)
+        {
+            // float brightness = AverageColorOfBitmap.GetBrightness();
+            float CDiff = (float)500;
+            float BDiff = (float).125;
+
+            Logging.LogLine("GetContrastingFontColor(): Starting. ");
+
+            IEnumerable<Color> AcceptableColors = new List<Color>();
+
+            // In retail, we should use this code
+
+            //AcceptableColors =
+            //    (IEnumerable<Color>)FavoriteColors.Where(clr =>
+            //        (WithinColorDifferenceRange(AverageColorOfBitmap, clr, CDiff) &&
+            //        (WithinBrightnessDifferenceRange(AverageColorOfBitmap, clr, BDiff)))).
+            //        OrderBy(clr => GetColorDifference(AverageColorOfBitmap, clr));
+
+            List<Color> temp;
+            // temp = AcceptableColors.ToList();
+
+            // In DEBUG, we should use this code, as it's instrumented
+
+            AcceptableColors =
+                (IEnumerable<Color>)FavoriteColors.Where(clr =>
+                    (WithinColorDifferenceRange(AverageColorOfBitmap, clr, CDiff)));
+
+            temp = AcceptableColors.ToList();
+            Logging.LogLine("  Count of colors passing GetColorDifference: " + temp.Count);
+
+            AcceptableColors = temp.Where(clr => WithinBrightnessDifferenceRange(AverageColorOfBitmap, clr, BDiff));
+
+            temp = AcceptableColors.ToList();
+            Logging.LogLine("  ...and then passing GetBrightness: " + temp.Count);
+
+            // TODO: figure out a good order that gives "best" result
+            AcceptableColors = temp.OrderBy(c => GetColorDifference(AverageColorOfBitmap, c));
+            temp = AcceptableColors.ToList();
+
+            Logging.LogLine("  List of AcceptableColors: ");
+            foreach (Color c in temp)
+            {
+                Logging.LogLine("          " + c.Name + ", CDiff = " + GetColorDifference(AverageColorOfBitmap, c) +
+                    ", BDiff = " + GetBrightnessDifference(AverageColorOfBitmap, c));
+            }
+
+            return AcceptableColors.DefaultIfEmpty(Color.Aqua).First();
+
+        }
+
+        private bool WithinBrightnessDifferenceRange(Color avg, Color proposed, float desiredDifference)
+        {
+            return GetBrightnessDifference(avg, proposed) > desiredDifference;
+        }
+
+        private bool WithinColorDifferenceRange(Color avg, Color proposed, float desiredDifference)
+        {
+
+            return GetColorDifference(avg, proposed) > desiredDifference;
+        }
+
+        private float GetBrightnessDifference(Color avg, Color proposed)
+        {
+            float result = Math.Abs(proposed.GetBrightness() - avg.GetBrightness());
+            // Logging.LogLine("     Proposed color: " + proposed.Name + ", Brightness Difference: " + result.ToString());
+            return result;
+        }
+
+        private float GetColorDifference(Color avg, Color proposed)
+        {
+            float r1 = Convert.ToSingle(MaxByte(Color.Red, avg, proposed));
+            float r2 = Convert.ToSingle(MinByte(Color.Red, avg, proposed));
+            float r3 = Convert.ToSingle(MaxByte(Color.Green, avg, proposed));
+            float r4 = Convert.ToSingle(MinByte(Color.Green, avg, proposed));
+            float r5 = Convert.ToSingle(MaxByte(Color.Blue, avg, proposed));
+            float r6 = Convert.ToSingle(MinByte(Color.Blue, avg, proposed));
+
+            float result = Math.Abs((r1 - r2) + (r3 - r4) + (r5 - r6));
+            // Logging.LogLine("     Proposed color: " + proposed.Name + ", Color Difference: " + result.ToString());
+
+            return result;
+        }
+
+        private byte MaxByte(Color rgb, Color x, Color y)
+        {
+            if (rgb == Color.Red) return (x.R >= y.R) ? x.R : y.R;
+            if (rgb == Color.Green) return (x.G >= y.G) ? x.G : y.G;
+            if (rgb == Color.Blue) return (x.B >= y.B) ? x.B : y.B;
+            return byte.MinValue;
+        }
+
+        private byte MinByte(Color rgb, Color x, Color y)
+        {
+            if (rgb == Color.Red) return (x.R <= y.R) ? x.R : y.R;
+            if (rgb == Color.Green) return (x.G <= y.G) ? x.G : y.G;
+            if (rgb == Color.Blue) return (x.B <= y.B) ? x.B : y.B;
+            return byte.MinValue;
+        }
+
+        private bool TryDeleteFile(string target)
+        {
+            bool fFileDeleted = false;
+
+            try
+            {
+                File.Delete(target);
+                fFileDeleted = true;
+            }
+            catch (Exception ex)
+            {
+                Logging.LogLine("Exception trying to delete file: " + target + ", Exception: " + ex.Message);
+
+                MessageBox.Show("The file could not be deleted at this time:" + Environment.NewLine + Environment.NewLine +
+                "Filename:  " + target, ProductName + " -- Delete A File... For Real", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                fFileDeleted = false;
+            }
+
+            return fFileDeleted;
+        }
+
+        private Color CalculateAverageColor(Bitmap bm)
+        {
+            int width = bm.Width;
+            int height = bm.Height;
+            int red = 0;
+            int green = 0;
+            int blue = 0;
+            int minDiversion = 0; // drop pixels that do not differ by at least minDiversion between color values (white, gray or black)
+            int dropped = 0; // keep track of dropped pixels
+            long[] totals = new long[] { 0, 0, 0 };
+            int bppModifier = bm.PixelFormat == System.Drawing.Imaging.PixelFormat.Format24bppRgb ? 3 : 4; // cutting corners, will fail on anything else but 32 and 24 bit images
+
+            BitmapData srcData = bm.LockBits(new System.Drawing.Rectangle(0, 0, bm.Width, bm.Height), ImageLockMode.ReadOnly, bm.PixelFormat);
+            int stride = srcData.Stride;
+            IntPtr Scan0 = srcData.Scan0;
+
+            unsafe
+            {
+                byte* p = (byte*)(void*)Scan0;
+
+                for (int y = 0; y < height; y++)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        int idx = (y * stride) + x * bppModifier;
+                        red = p[idx + 2];
+                        green = p[idx + 1];
+                        blue = p[idx];
+                        if (Math.Abs(red - green) > minDiversion || Math.Abs(red - blue) > minDiversion || Math.Abs(green - blue) > minDiversion)
+                        {
+                            totals[2] += red;
+                            totals[1] += green;
+                            totals[0] += blue;
+                        }
+                        else
+                        {
+                            dropped++;
+                        }
+                    }
+                }
+            }
+
+            int avgR = 0;
+            int avgG = 0;
+            int avgB = 0;
+
+            int count = width * height - dropped;
+            if (count != 0)
+            {
+                avgR = (int)(totals[2] / count);
+                avgG = (int)(totals[1] / count);
+                avgB = (int)(totals[0] / count);
+            }
+            else
+            {
+                Logging.LogLine("CalculateAverageColor(): bad bitmap? Count was zero, returning black.");
+            }
+
+            bm.UnlockBits(srcData);
+
+            return System.Drawing.Color.FromArgb(avgR, avgG, avgB);
+        }
+
+        private Color CalculateAverageColor(Bitmap bm, int left, int top, int right, int bottom)
+        {
+            int width = right - left;
+            int height = top - bottom;
+            int red = 0;
+            int green = 0;
+            int blue = 0;
+            int minDiversion = 0; // drop pixels that do not differ by at least minDiversion between color values (white, gray or black)
+            int dropped = 0; // keep track of dropped pixels
+            long[] totals = new long[] { 0, 0, 0 };
+            int bppModifier = bm.PixelFormat == System.Drawing.Imaging.PixelFormat.Format24bppRgb ? 3 : 4; // cutting corners, will fail on anything else but 32 and 24 bit images
+
+            BitmapData srcData = bm.LockBits(new System.Drawing.Rectangle(0, 0, bm.Width, bm.Height), ImageLockMode.ReadOnly, bm.PixelFormat);
+            int stride = srcData.Stride;
+            IntPtr Scan0 = srcData.Scan0;
+
+            unsafe
+            {
+                byte* p = (byte*)(void*)Scan0;
+
+                for (int y = top; y < height; y++)
+                {
+                    for (int x = left; x < width; x++)
+                    {
+                        int idx = (y * stride) + x * bppModifier;
+                        red = p[idx + 2];
+                        green = p[idx + 1];
+                        blue = p[idx];
+                        if (Math.Abs(red - green) > minDiversion || Math.Abs(red - blue) > minDiversion || Math.Abs(green - blue) > minDiversion)
+                        {
+                            totals[2] += red;
+                            totals[1] += green;
+                            totals[0] += blue;
+                        }
+                        else
+                        {
+                            dropped++;
+                        }
+                    }
+                }
+            }
+
+            int avgR = 0;
+            int avgG = 0;
+            int avgB = 0;
+
+            int count = width * height - dropped;
+            if (count != 0)
+            {
+                avgR = (int)(totals[2] / count);
+                avgG = (int)(totals[1] / count);
+                avgB = (int)(totals[0] / count);
+            }
+            else
+            {
+                Logging.LogLine("CalculateAverageColor(): bad bitmap? Count was zero, returning black.");
+            }
+
+            bm.UnlockBits(srcData);
+
+            return System.Drawing.Color.FromArgb(avgR, avgG, avgB);
+        }
+
+        #endregion Experimental Things
+
+        #endregion Methods
+
+
+    }
+}
