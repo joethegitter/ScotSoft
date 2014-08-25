@@ -339,6 +339,11 @@ namespace ScotSoft.PattySaver
                     // Break into the debugger
                     if (e.Control && e.Shift)
                     {
+                        if (!System.Diagnostics.Debugger.IsAttached)
+                        {
+                            return;
+                        }
+
                         if (fScreenSaverWindowStyle)
                         {
                             ExitScreenSaverWindowStyle();

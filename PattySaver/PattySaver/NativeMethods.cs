@@ -55,6 +55,23 @@ namespace ScotSoft.PattySaver
             }
         }
 
+        [DllImport("user32.dll")]
+        internal static extern void SetLastErrorEx(uint dwErrCode, uint dwType);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        internal static extern IntPtr GetWindow(IntPtr hWnd, GetWindow_Cmd uCmd);
+
+        internal enum GetWindow_Cmd : uint
+        {
+            GW_HWNDFIRST = 0,
+            GW_HWNDLAST = 1,
+            GW_HWNDNEXT = 2,
+            GW_HWNDPREV = 3,
+            GW_OWNER = 4,
+            GW_CHILD = 5,
+            GW_ENABLEDPOPUP = 6
+        }
+
         // This static method is required because legacy OSes do not support SetWindowLongPtr
         internal static IntPtr SetWindowLongPtr(HandleRef hWnd, int nIndex, IntPtr dwNewLong)
         {
@@ -75,29 +92,29 @@ namespace ScotSoft.PattySaver
                 return GetWindowLongPtr32(hWnd, nIndex);
         }
 
-        [DllImport("user32.dll", EntryPoint = "SetWindowLong")]
+        [DllImport("user32.dll", EntryPoint = "SetWindowLong", SetLastError = true)]
         internal static extern int SetWindowLong32(HandleRef hWnd, int nIndex, int dwNewLong);
 
-        [DllImport("user32.dll", EntryPoint = "SetWindowLongPtr")]
+        [DllImport("user32.dll", EntryPoint = "SetWindowLongPtr", SetLastError = true)]
         internal static extern IntPtr SetWindowLongPtr64(HandleRef hWnd, int nIndex, IntPtr dwNewLong);
 
         [SuppressMessage("Microsoft.Portability", "CA1901:PInvokeDeclarationsShouldBePortable", MessageId = "return", Justification = "Calling code is expected to handle the different size of IntPtr")]
-        [DllImport("user32.dll", EntryPoint = "GetWindowLong")]
+        [DllImport("user32.dll", EntryPoint = "GetWindowLong", SetLastError = true)]
         internal static extern IntPtr GetWindowLongPtr32(IntPtr hWnd, int nIndex);
 
-        [DllImport("user32.dll", EntryPoint = "GetWindowLongPtr")]
+        [DllImport("user32.dll", EntryPoint = "GetWindowLongPtr", SetLastError = true)]
         internal static extern IntPtr GetWindowLongPtr64(IntPtr hWnd, int nIndex);
 
         [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode", Justification = "This function is shared by various projects and may not be used by a specific project")]
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", SetLastError = true)]
         internal static extern IntPtr SendMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
 
         [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode", Justification = "This function is shared by various projects and may not be used by a specific project")]
-        [DllImport("user32.dll", CharSet = CharSet.Auto, ExactSpelling = true)]
+        [DllImport("user32.dll", CharSet = CharSet.Auto, ExactSpelling = true, SetLastError = true)]
         internal static extern IntPtr GetActiveWindow();
 
         [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode", Justification = "This function is shared by various projects and may not be used by a specific project")]
-        [System.Runtime.InteropServices.DllImport("gdi32.dll")]
+        [System.Runtime.InteropServices.DllImport("gdi32.dll", SetLastError = true)]
         internal static extern bool DeleteObject(IntPtr hObject);
 
         [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode", Justification = "This function is shared by various projects and may not be used by a specific project")]
@@ -119,27 +136,27 @@ namespace ScotSoft.PattySaver
             return GetClientRect(hWnd, ref rect);
         }
 
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", SetLastError = true)]
         internal static extern bool ClientToScreen(IntPtr hWnd, ref Point lpPoint);
 
 
-        [DllImport("user32.DLL", EntryPoint = "IsWindowVisible")]
+        [DllImport("user32.DLL", EntryPoint = "IsWindowVisible", SetLastError = true)]
         internal static extern bool IsWindowVisible(IntPtr hWnd);
 
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", SetLastError = true)]
         internal static extern bool GetClientRect(IntPtr hWnd, ref Rectangle rect);
 
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", SetLastError = true)]
         internal static extern IntPtr SetParent(IntPtr hWndChild, IntPtr hWndNewParent);
 
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool SetForegroundWindow(IntPtr hWnd);
 
-        [DllImport("user32.dll", ExactSpelling = true, CharSet = CharSet.Auto)]
+        [DllImport("user32.dll", SetLastError = true, ExactSpelling = true, CharSet = CharSet.Auto)]
         internal static extern IntPtr GetParent(IntPtr hWnd);
 
-        [DllImport("shlwapi.dll", CharSet = CharSet.Auto)]
+        [DllImport("shlwapi.dll", SetLastError = true, CharSet = CharSet.Auto)]
         internal static extern bool PathCompactPathEx([Out] StringBuilder pszOut, string szPath, int cchMax, int dwFlags);
 
         public static string CompactPath(string longPathName, int wantedLength)
@@ -163,6 +180,67 @@ namespace ScotSoft.PattySaver
             DWLP_USER = 0x8,
             DWLP_MSGRESULT = 0x0,
             DWLP_DLGPROC = 0x4
+        }
+
+        public static class WindowStyles
+        {
+
+            public static readonly Int32
+
+            WS_BORDER = 0x00800000,
+
+            WS_CAPTION = 0x00C00000,
+
+            WS_CHILD = 0x40000000,
+
+            WS_CHILDWINDOW = 0x40000000,
+
+            WS_CLIPCHILDREN = 0x02000000,
+
+            WS_CLIPSIBLINGS = 0x04000000,
+
+            WS_DISABLED = 0x08000000,
+
+            WS_DLGFRAME = 0x00400000,
+
+            WS_GROUP = 0x00020000,
+
+            WS_HSCROLL = 0x00100000,
+
+            WS_ICONIC = 0x20000000,
+
+            WS_MAXIMIZE = 0x01000000,
+
+            WS_MAXIMIZEBOX = 0x00010000,
+
+            WS_MINIMIZE = 0x20000000,
+
+            WS_MINIMIZEBOX = 0x00020000,
+
+            WS_OVERLAPPED = 0x00000000,
+
+            WS_OVERLAPPEDWINDOW = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX,
+
+            WS_POPUP = unchecked((int)0x80000000),
+
+            WS_POPUPWINDOW = WS_POPUP | WS_BORDER | WS_SYSMENU,
+
+            WS_SIZEBOX = 0x00040000,
+
+            WS_SYSMENU = 0x00080000,
+
+            WS_TABSTOP = 0x00010000,
+
+            WS_THICKFRAME = 0x00040000,
+
+            WS_TILED = 0x00000000,
+
+            WS_TILEDWINDOW = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX,
+
+            WS_VISIBLE = 0x10000000,
+
+            WS_VSCROLL = 0x00200000;
+
         }
     }
 }

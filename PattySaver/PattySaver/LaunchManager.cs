@@ -13,6 +13,12 @@ namespace ScotSoft.PattySaver.LaunchManager
 {
     class Modes
     {
+        // All debug logging in this method should use Logging.LogLine, instead of System.Diagnostics.Debug.XXXX.
+        // EntryPoint and LaunchManager need to support artificial debug output when in the control panel.
+
+        static bool fDebugOutput = true;
+        static bool fDebugOutputAtTraceLevel = false;
+        static bool fDebugTrace = fDebugOutput && fDebugOutputAtTraceLevel;
 
         #region Public Fields and Enums
 
@@ -27,6 +33,7 @@ namespace ScotSoft.PattySaver.LaunchManager
         public static string dbgScreenSaverValAddition = nv;    // information added by the Settings Screen code
 
         public static bool fVSHOSTED = false;
+        public static bool fAllowUseOfDebugOutputWindow = false;
         public static bool fOpenInScreenSaverMode = true;
         public static bool fNoArgMode = true;
         public static bool UnofficialArgOverrideWindowed = false;
@@ -47,8 +54,6 @@ namespace ScotSoft.PattySaver.LaunchManager
         }
 
 
-
-        public static Dictionary<string, Dictionary<string, string>> cleanedArgs = new Dictionary<string, Dictionary<string, string>>();
 
         #endregion Public Fields and Enums
 
@@ -74,8 +79,8 @@ namespace ScotSoft.PattySaver.LaunchManager
             // Acceptable cases:
             // 1. Zero arguments
             // 2. A single 'public' argument in the form of "/c", or "/s", or 
-            //    "/c:xxxxxxx", "/p:xxxxxx", or "/c xxxxxxxx", or "/p xxxxxxx", which must
-            //    argument must be the first argument; and then any number of 'private' arguments.
+            //    "/c:xxxxxxx", "/p:xxxxxx", or "/c xxxxxxxx", or "/p xxxxxxx"; public argument
+            //    must be the first argument; and then any number of 'private' arguments.
             //    Private arguments must also be separated by the "/" character. Private arguments 
             //    can have any number of sub-arguments, separated by spaces.
             // 3. Only private arguments.
@@ -84,12 +89,15 @@ namespace ScotSoft.PattySaver.LaunchManager
             // In the case that the unofficial args contain "/window", we ignore all other data and force fullscreen.
             // That is handled outside of this method.
 
+            Logging.LogLineIf(fDebugTrace, "GetLaunchModalityFromCmdLineArgs(): Entered.");
+
             hwndTargetWindow = (long)(-1);
 
             if (!(incoming.Length > 0))
             {
-                Logging.LogLine("GetLaunchModalityFromCmdLineArgs: No args, so Configure Mode.");
+                Logging.LogLineIf(fDebugTrace, "   GetLaunchModalityFromCmdLineArgs(): No args, so Configure Mode.");
                 argsConsumed = 0;
+                Logging.LogLineIf(fDebugTrace, "GetLaunchModalityFromCmdLineArgs(): exiting.");
                 return Modes.LaunchModality.Configure;                  // no args = Configure
             }
 
@@ -106,12 +114,14 @@ namespace ScotSoft.PattySaver.LaunchManager
 
                     argsConsumed = 1;
                     if (SubArgParsesToLong) hwndTargetWindow = subArg;
+                    Logging.LogLineIf(fDebugTrace, "GetLaunchModalityFromCmdLineArgs(): exiting to GetModality().");
                     return GetModality(baseArg, subArg, HasSubArg, SubArgParsesToLong);
                 }
                 else
                 {
                     argsConsumed = 0;
-                    Logging.LogLine("GetLaunchModalityFromCmdLineArgs: IsValidSingleOrDoubleArg() returned false, so Configure Mode.");
+                    Logging.LogLineIf(fDebugTrace, "   GetLaunchModalityFromCmdLineArgs(): IsValidSingleOrDoubleArg() returned false, so Configure Mode.");
+                    Logging.LogLineIf(fDebugTrace, "GetLaunchModalityFromCmdLineArgs(): exiting.");
                     return LaunchModality.Configure;
                 }
             }
@@ -140,19 +150,22 @@ namespace ScotSoft.PattySaver.LaunchManager
                         HasSubArg = hasSubArg;
                         SubArgParsesToLong = subArgParsesToLong;
                     }
+                    Logging.LogLineIf(fDebugTrace, "GetLaunchModalityFromCmdLineArgs(): exiting to GetModality().");
                     return GetModality(baseArg, subArg, HasSubArg, SubArgParsesToLong); // first arg was valid, second may not have been, let GetModality sort it out
                 }
                 else  // first arg not valid, so abandon all hope
                 {
                     argsConsumed = 0;
-                    Logging.LogLine("GetLaunchModalityFromCmdLineArgs: IsValidBaseArg() returned false, so Configure Mode.");
+                    Logging.LogLineIf(fDebugOutput, "   GetLaunchModalityFromCmdLineArgs(): IsValidBaseArg() returned false, so Configure Mode.");
+                    Logging.LogLineIf(fDebugTrace, "GetLaunchModalityFromCmdLineArgs(): exiting.");
                     return LaunchModality.Configure;
                 }
             }
 
             // how do we get here without having returned?
             argsConsumed = 0;
-            Logging.LogLine("GetLaunchModalityFromCmdLineArgs: Falling through to Configure, HOW THE HELL DID WE GET HERE??");
+            Logging.LogLine("GetLaunchModalityFromCmdLineArgs(): Falling through to Configure, HOW THE HELL DID WE GET HERE??");
+            Logging.LogLineIf(fDebugTrace, "GetLaunchModalityFromCmdLineArgs(): exiting.");
             return LaunchModality.Configure;
         }
 
@@ -174,6 +187,8 @@ namespace ScotSoft.PattySaver.LaunchManager
             // If c: HasSubArg and not SubArgParsesToLong, return Configure (bad hwnd, just launch configure) (log)
             // If c: HasSubArg and SubArgParsesToLong, return Configure_WithHandle
 
+            Logging.LogLineIf(fDebugTrace, "GetModality(): entered.");
+
             // save printable params for output
             string args = "baseArg: " + baseArg + ", subArg: " + subArg + ", HasSubArg: " + HasSubArg + ", SubArgParsesToLong: " + SubArgParsesToLong;
 
@@ -183,7 +198,7 @@ namespace ScotSoft.PattySaver.LaunchManager
             {
                 if (HasSubArg && SubArgParsesToLong)
                 {
-                    Logging.LogLine("GetModality: returning Preview based on args: " + args);
+                    Logging.LogLineIf(fDebugTrace, "   GetModality(): returning Preview based on args: " + args);
                     retVal = LaunchModality.Mini_Preview;
                 }
                 else
@@ -196,7 +211,7 @@ namespace ScotSoft.PattySaver.LaunchManager
                             MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
 #endif
-                    Logging.LogLine("GetModality: Falling through to NOLAUNCH: Preview requested with no or bad hwnd: " + args);
+                    Logging.LogLineIf(fDebugOutput, "  * GetModality(): Falling through to NOLAUNCH: Preview requested with no or bad hwnd: " + args);
                     retVal = LaunchModality.NOLAUNCH;
                 }
             }
@@ -213,12 +228,12 @@ namespace ScotSoft.PattySaver.LaunchManager
                             MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
 #endif
-                    Logging.LogLine("GetModality: Full Screen requested with hwnd: " + args);
+                    Logging.LogLineIf(fDebugTrace, "   GetModality(): FullScreen requested with hwnd: " + args);
                     retVal = LaunchModality.FullScreen;
                 }
                 else
                 {
-                    Logging.LogLine("GetModality: returning FullScreen based on args: " + args);
+                    Logging.LogLineIf(fDebugTrace, "   GetModality(): returning FullScreen based on args: " + args);
                     retVal = LaunchModality.FullScreen;
                 }
             }
@@ -227,13 +242,13 @@ namespace ScotSoft.PattySaver.LaunchManager
             {
                 if (!HasSubArg)
                 {
-                    Logging.LogLine("GetModality: returning Configure based on args: " + args);
+                    Logging.LogLineIf(fDebugTrace, "   GetModality(): returning Configure based on args: " + args);
                     retVal = LaunchModality.Configure;
                 }
 
                 if (HasSubArg && SubArgParsesToLong)
                 {
-                    Logging.LogLine("GetModality: returning Configure_WithHandle based on args: " + args);
+                    Logging.LogLineIf(fDebugTrace, "   GetModality(): returning Configure_WithHandle based on args: " + args);
                     retVal = LaunchModality.Configure_WithWindowHandle;
                 }
 
@@ -247,7 +262,7 @@ namespace ScotSoft.PattySaver.LaunchManager
                             MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
 #endif
-                    Logging.LogLine("GetModality: Falling through to Configure: Configure requested with bad hwnd: " + args);
+                    Logging.LogLineIf(fDebugOutput, "  * GetModality(): Falling through to Configure: Configure requested with bad hwnd: " + args);
                     retVal = LaunchModality.Configure;
                 }
             }
@@ -262,9 +277,10 @@ namespace ScotSoft.PattySaver.LaunchManager
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
 #endif
-                Logging.LogLine("GetModality: Falling through to NOLAUNCH, hitting DEFAULT CASE: " + args);
+                Logging.LogLineIf(fDebugOutput, "  * GetModality(): Falling through to NOLAUNCH, hitting DEFAULT CASE: " + args);
             }
 
+            Logging.LogLineIf(fDebugTrace, "GetModality(): exiting.");
             return retVal;
         }
 

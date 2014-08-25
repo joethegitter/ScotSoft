@@ -52,6 +52,7 @@ namespace ScotSoft.PattySaver
         private bool fWasInSlideshowModeWhenMenuOpened;         // lets us pause and resume Slideshow Mode when menu opens and closes.
         private bool fWasInSlideshowModeWhenETFStarted;         // lets us pause and resume Slideshow Mode entering and exiting ETF mode.
         private bool fWasInSlideshowModeWhenDeactivated = false;// lets us pause and resume Slideshow Mode when window is deactivate/activated
+        private bool fShowingDialog = false;                    // lets us know that we're losing activation because we're showing dialog
 
         // Slideshow object
         public Slideshow ourSlideshow;                          // the object which controls our slideshow mechanics
@@ -188,7 +189,7 @@ namespace ScotSoft.PattySaver
         private void FullScreenForm_Deactivate(object sender, EventArgs e)
         {
             bool fDebugOutput = true;
-            bool fDebugoutputTraceLevel = false;
+            bool fDebugoutputTraceLevel = true;
             bool fDebugTrace = fDebugOutput && fDebugoutputTraceLevel;
 
             Debug.WriteLineIf(fDebugTrace, "FullScreenForm_Deactivate(): entering.");
@@ -201,7 +202,7 @@ namespace ScotSoft.PattySaver
                 ourSlideshow.Exit();
             }
 
-            if (fScreenSaverWindowStyle)
+            if (fScreenSaverWindowStyle && !fShowingDialog)   // don't exit ScreenSaverWindowStyle if we're just showing our own dialog
             {
                 Debug.WriteLineIf(fDebugTrace, "   FullScreenForm_Deactivate(): Exiting ScreenSaverWindowStyle.");
                 ExitScreenSaverWindowStyle();
@@ -218,8 +219,11 @@ namespace ScotSoft.PattySaver
         private void FullScreenForm_Activated(object sender, EventArgs e)
         {
             bool fDebugOutput = true;
-            bool fDebugoutputTraceLevel = false;
+            bool fDebugoutputTraceLevel = true;
             bool fDebugTrace = fDebugOutput && fDebugoutputTraceLevel;
+
+            // never try to re-enter ScreenSaverWindowStyle when activating, half of Alt-Tab
+            // events we don't get the Activated event 
 
             Debug.WriteLineIf(fDebugTrace, "FullScreenForm_Activated(): entering.");
 
@@ -1294,6 +1298,14 @@ namespace ScotSoft.PattySaver
 
         private void DoSettingsDialog()
         {
+
+            bool fDebugOutput = true;
+            bool fDebugOutputTraceLevel = true;
+            bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
+
+            Debug.WriteLineIf(fDebugTrace, "DoSettingsDialog(): Entered.");
+
+
             // pause became redundant with our activation/deactivation code;
             // restore this code if we remove the activation/deactivation logic
 
@@ -1311,10 +1323,13 @@ namespace ScotSoft.PattySaver
 
             settingsForm = new Settings(true, this);
             settingsForm.Owner = this;
+            fShowingDialog = true;
 
             //if ((new Settings(true, this)).ShowDialog(this.Owner) == System.Windows.Forms.DialogResult.Retry)
             if (settingsForm.ShowDialog(this) == System.Windows.Forms.DialogResult.Retry)
             {
+                fShowingDialog = false;
+
                 // User changed something that requires a rebuild of the file list.
                 MainFiles.Rebuild((List<DirectoryInfo>)SettingsInfo.GetListOfDirectoryInfo(), SettingsInfo.GetBlacklistedFullFilenames(), SettingsInfo.UseRecursion, SettingsInfo.ShuffleMode);
 
@@ -1322,6 +1337,8 @@ namespace ScotSoft.PattySaver
                 DoPreviousOrNext(false);
             }
 
+            fShowingDialog = false;
+            
             // dispose of the form, since we create a new one every time
             settingsForm.Dispose();
 
@@ -1338,6 +1355,9 @@ namespace ScotSoft.PattySaver
             //{
             //    EnterSlideshowMode();
             //}
+
+            Debug.WriteLineIf(fDebugTrace, "DoSettingsDialog(): Exiting.");
+
         }
 
         private void DoHelpAboutDialog()
@@ -1350,6 +1370,8 @@ namespace ScotSoft.PattySaver
                 ourSlideshow.Exit();
             }
 
+            fShowingDialog = true;
+
             // Create the form and show it as a modal dialog.
             // Doing it all in one statement like this causes the form to be created, used,
             // disposed of, and all references to it nulled, all in one line.
@@ -1357,6 +1379,8 @@ namespace ScotSoft.PattySaver
             {
                 // do nothing for now
             }
+
+            fShowingDialog = false;
 
             // Resume the slideshow if necessary
             if (fWasSlideshowMode)
@@ -1567,14 +1591,18 @@ namespace ScotSoft.PattySaver
             fontdlg.ShowApply = true;
             fontdlg.ShowColor = true;
 
+            fShowingDialog = true;
+
             DialogResult dr = fontdlg.ShowDialog();
             if (dr == System.Windows.Forms.DialogResult.OK)
             {
+                fShowingDialog = false;
                 if (metaFontData.SetPropertiesFromFontDlg(fontdlg))
                 {
                     pbMain.Invalidate();
                 }
             }
+            fShowingDialog = false;
         }
 
         private void DoColorDialog()

@@ -21,7 +21,6 @@ namespace ScotSoft.PattySaver
             InitializeComponent();
             textBox1.Text = Logging.strBuffer;
             textBox1.Select(textBox1.Text.Length - 1, 0);
-
         }
     }
 }

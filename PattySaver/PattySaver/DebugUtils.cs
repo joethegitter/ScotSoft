@@ -29,9 +29,14 @@ namespace ScotSoft.PattySaver.DebugUtils
 
         static private TextBox tx = null;
 
-        static public void ShowHideDebugWindow(Form callingForm)
+        static public bool ShowHideDebugWindow(Form callingForm)
         {
-            if (dbgWindow == null)
+            if (!Modes.fAllowUseOfDebugOutputWindow)
+            {
+                return false;
+            }
+
+            if (dbgWindow == null)  // has not been created yet
             {
                 if ((callingForm.TopMost == true) && (callingForm.WindowState == FormWindowState.Maximized))
                 {
@@ -48,13 +53,13 @@ namespace ScotSoft.PattySaver.DebugUtils
 
                 dbgWindow = new ScrollingTextWindow();
                 dbgWindow.Location = new System.Drawing.Point(0, 0);
-                dbgWindow.Show();
-
+                dbgWindow.Show(callingForm);
             }
             else if (dbgWindow.Visible == false)
             {
                 dbgWindow.Visible = true;
             }
+            return true;
         }
 
         static public void Log(int level, string category, string message, bool AddCrLf = false)
@@ -93,6 +98,22 @@ namespace ScotSoft.PattySaver.DebugUtils
             Log(0, null, message);
         }
 
+        static public void LogIf(bool YesNo, string message)
+        {
+            if (YesNo)
+            {
+                Log(message);
+            }
+        }
+
+        static public void LogIf(bool YesNo, int level, string category, string message)
+        {
+            if (YesNo)
+            {
+                Log(level, category, message);
+            }
+        }
+
         static public void LogLine(int level, string category, string message)
         {
             Log(level, category, message, true);
@@ -101,6 +122,22 @@ namespace ScotSoft.PattySaver.DebugUtils
         static public void LogLine(string message)
         {
             Log(0, null, message, true);
+        }
+
+        static public void LogLineIf(bool YesNo, string message)
+        {
+            if (YesNo)
+            {
+                LogLine(message);
+            }
+        }
+
+        static public void LogLineIf(bool YesNo, int level, string category, string message)
+        {
+            if (YesNo)
+            {
+                LogLine(level, category, message);
+            }
         }
 
         static public bool CannotLog()
