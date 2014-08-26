@@ -30,7 +30,7 @@ namespace ScotSoft.PattySaver
             Application.ThreadException += new ThreadExceptionEventHandler(Application_ThreadException);
             AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(CurrentDomain_UnhandledException);
 
-            // if there is no debugger and/or logger available, send Logging.LogLine() output
+            // if there is no debugger and/or logger available, send Logging.LogLineIf() output
             // to a string buffer and/or scrolling text window so we can see it.
             if (Logging.CannotLog())
             {
@@ -137,7 +137,7 @@ namespace ScotSoft.PattySaver
                 Launch(mode, toBeHwnd);
             }
 
-            //Debug.WriteLine("Main(): execution returned to non-VSHOSTED section after Application.Run(). Calling Application.Exit().");
+            //Logging.LogLineIf("Main(): execution returned to non-VSHOSTED section after Application.Run(). Calling Application.Exit().");
             //Application.Exit();
             Logging.LogLineIf(fDebugTrace, "Main(): exiting.");
             return;         
@@ -199,7 +199,7 @@ namespace ScotSoft.PattySaver
             if (Modes.fVSHOSTED)
             {
                 // currently there are no unofficial args which are meaningful to VSHOSTED mode
-                Logging.LogLine("HandleUnofficialArguments(): Unofficial arg detected, but unofficial args are not valid for VSHOSTED mode. No action will be taken. Command Line was: " +
+                Logging.LogLineIf(fDebugOutput, "HandleUnofficialArguments(): Unofficial arg detected, but unofficial args are not valid for VSHOSTED mode. No action will be taken. Command Line was: " +
                     Environment.NewLine + System.Environment.CommandLine);
                 return;
             }
@@ -280,7 +280,7 @@ namespace ScotSoft.PattySaver
             }
             else if (LaunchMode == Modes.LaunchModality.Undecided)
             {
-                Logging.LogLine("Error: Apparently we are still in LaunchMode == Undecided.");
+                Logging.LogLineIf(fDebugOutput, "Error: Apparently we are still in LaunchMode == Undecided.");
 #if DEBUG
                 if (System.Diagnostics.Debugger.IsAttached)
                 {

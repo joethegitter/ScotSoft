@@ -21,6 +21,10 @@ namespace ScotSoft.PattySaver
     {
         #region Data
 
+        bool fDebugOutput = true;
+        bool fDebugAtTraceLevel = false;
+        bool fDebugTrace = false; // do not modify here, it's recalculated at method level
+
         private bool InPreLoad = true;
         private bool InLoad = false;
         private bool OpenedFromControlPanel = false;
@@ -274,7 +278,6 @@ namespace ScotSoft.PattySaver
         {
             if (!InPreLoad && !InLoad)
             {
-                Logging.LogLine("Item's check is about to change to: " + e.NewValue + ", CheckedItems.Count was: " + Folders.CheckedItems.Count.ToString());
                 fRebuildNeeded = true; // super conservative, but tracking if all checks in list are still the same when Save is clicked would be very hard...
 
                 if (UseOnlyChecked.Checked && (Folders.CheckedItems.Count < 2)) // If only one item, checking/unchecking can change message

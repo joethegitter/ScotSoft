@@ -21,6 +21,10 @@ namespace ScotSoft.PattySaver
     /// </summary>
     public class SettingsInfo
     {
+        static bool fDebugOutput = true;
+        static bool fDebugAtTraceLevel = false;
+        static bool fDebugTrace = false;  // do not modify, recalculated at method level
+
         // Defaults
         public static bool ShuffleMode = false;
         public static bool ShowMetadata = false;
@@ -58,6 +62,10 @@ namespace ScotSoft.PattySaver
         /// </summary>
         public static void SaveConfigSettingsToStorage()
         {
+            fDebugTrace = fDebugOutput && fDebugAtTraceLevel;
+
+            Logging.LogLineIf(fDebugTrace, "SaveConfigSettingsToStorage(): entered.");
+
             // Create a table to hold non-list-based settings
             DataTable dtData = new DataTable("ConfigurationData", "myTableNamespace");
             dtData.Columns.Add("ShuffleMode", ShuffleMode.GetType());
@@ -153,7 +161,7 @@ namespace ScotSoft.PattySaver
             }
             catch (Exception ex)
             {
-                Logging.LogLine("Error: could not save Data Config File to path: " + GetConfigSettingsDataFileName() + ", Exception: " + ex.Message);
+                Logging.LogLineIf(fDebugOutput, "Error: could not save Data Config File to path: " + GetConfigSettingsDataFileName() + ", Exception: " + ex.Message);
             }
 
             // Now write the second table as a separate file.
@@ -168,7 +176,7 @@ namespace ScotSoft.PattySaver
             }
             catch (Exception ex)
             {
-                Logging.LogLine("Error: could not save Lists Config File to path: " + GetConfigSettingsListFileName() + ", Exception: " + ex.Message);
+                Logging.LogLineIf(fDebugOutput, "Error: could not save Lists Config File to path: " + GetConfigSettingsListFileName() + ", Exception: " + ex.Message);
             }
 
             // Now write the third table as a separate file.
@@ -183,8 +191,11 @@ namespace ScotSoft.PattySaver
             }
             catch (Exception ex)
             {
-                Logging.LogLine("Error: could not save Blacklist Config File to path: " + GetConfigSettingsBlacklistFileName() + ", Exception: " + ex.Message);
+                Logging.LogLineIf(fDebugOutput, "Error: could not save Blacklist Config File to path: " + GetConfigSettingsBlacklistFileName() + ", Exception: " + ex.Message);
             }
+
+            Logging.LogLineIf(fDebugTrace, "SaveConfigSettingsToStorage(): exiting.");
+
         }
 
         /// <summary>
@@ -192,6 +203,10 @@ namespace ScotSoft.PattySaver
         /// </summary>
         public static void InitializeAndLoadConfigSettingsFromStorage()
         {
+            fDebugTrace = fDebugOutput && fDebugAtTraceLevel;
+
+            Logging.LogLineIf(fDebugTrace, "InitializeAndLoadConfigSettingsFromStorage(): entered.");
+
             // Load the non-list data from storage (will set defaults if no stored values)
             SetNonListData_FromPersistedStorage();                  // Read non-list data from persisted storage
 
@@ -201,6 +216,8 @@ namespace ScotSoft.PattySaver
             // Load list-based data from storage
             AddDirectoriesAndMetadataLists_FromPersistedStorage();    // Read in the second table.
             AddBlacklistedFilesList_FromPersistedStorage();                       // Read in the third table.
+
+            Logging.LogLineIf(fDebugTrace, "InitializeAndLoadConfigSettingsFromStorage(): exiting.");
         }
 
         ///// <summary>
@@ -218,12 +235,16 @@ namespace ScotSoft.PattySaver
         //    }
         //    else
         //    {
-        //        Logging.LogLine("Not adding duplicate filename to blacklist " + kvp.Value);
+        //        Logging.LogLineIf("Not adding duplicate filename to blacklist " + kvp.Value);
         //    }
         //}
 
         public static void AddFullFilenamesToBlacklist(List<String> FullFilenames)
         {
+            fDebugTrace = fDebugOutput && fDebugAtTraceLevel;
+
+            Logging.LogLineIf(fDebugTrace, "AddFullFilenamesToBlacklist(): entered.");
+
             KeyValuePair<DateTime, string> kvp;
 
             foreach (string FullFilename in FullFilenames)
@@ -234,10 +255,15 @@ namespace ScotSoft.PattySaver
                     BlacklistedFilenames.Add(kvp);
                 }
             }
+            Logging.LogLineIf(fDebugTrace, "AddFullFilenamesToBlacklist(): entered.");
         }
 
         public static List<String> GetBlacklistedFullFilenames()
         {
+            fDebugTrace = fDebugOutput && fDebugAtTraceLevel;
+
+            Logging.LogLineIf(fDebugTrace, "GetBlacklistedFullFilenames(): entered.");
+
             List<string> retVal = new List<string>();
 
             foreach (KeyValuePair<DateTime, String> kvp in BlacklistedFilenames)
@@ -245,6 +271,7 @@ namespace ScotSoft.PattySaver
                 retVal.Add(kvp.Value);
             }
 
+            Logging.LogLineIf(fDebugTrace, "GetBlacklistedFullFilenames(): exiting.");
             return retVal;
         }
 
@@ -254,6 +281,10 @@ namespace ScotSoft.PattySaver
         /// <returns></returns>
         public static IList<DirectoryInfo> GetListOfDirectoryInfo()
         {
+            fDebugTrace = fDebugOutput && fDebugAtTraceLevel;
+
+            Logging.LogLineIf(fDebugTrace, "GetListOfDirectoryInfo(): entered.");
+
             IList<DirectoryInfo> retVal = new List<DirectoryInfo>();
 
             foreach (KeyValuePair<bool, string> kvp in SettingsInfo.DirectoriesList)
@@ -275,10 +306,11 @@ namespace ScotSoft.PattySaver
             // If we came out with zero dirs (or zero checked dirs), return special folder pictures dir instead.
             if (retVal.Count < 1)
             {
-                Logging.LogLine("No directories listed (and/or checked) in config file, using My Pictures.");
+                Logging.LogLineIf(fDebugOutput, "No directories listed (and/or checked) in config file, using My Pictures.");
                 retVal.Add(new DirectoryInfo(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures)));
             }
 
+            Logging.LogLineIf(fDebugTrace, "GetListOfDirectoryInfo(): entered.");
             return retVal;
         }
 
@@ -287,6 +319,10 @@ namespace ScotSoft.PattySaver
         /// </summary>
         private static void AddDirectoriesAndMetadataLists_FromPersistedStorage()
         {
+            fDebugTrace = fDebugOutput && fDebugAtTraceLevel;
+
+            Logging.LogLineIf(fDebugTrace, "AddDirectoriesAndMetadataLists_FromPersistedStorage(): entered.");
+
             bool readFromDisk = false;                  // Did we successfully read from disk?
             DataTable dtLists = new DataTable();
 
@@ -298,7 +334,7 @@ namespace ScotSoft.PattySaver
             }
             catch (Exception ex)
             {
-                Logging.LogLine("Could not read Lists Config file from " + GetConfigSettingsListFileName() + "; Exception: " + ex.Message);
+                Logging.LogLineIf(fDebugOutput, "Could not read Lists Config file from " + GetConfigSettingsListFileName() + "; Exception: " + ex.Message);
             }
 
             // We didn't successfully read from disk, so set Default configuraton value.
@@ -324,14 +360,19 @@ namespace ScotSoft.PattySaver
                     }
                     else
                     {
-                        Logging.LogLine("Error reading data from Lists Config: encountered rogue 'RowType' column vallue: " + rowType);
+                        Logging.LogLineIf(fDebugOutput, "Error reading data from Lists Config: encountered rogue 'RowType' column vallue: " + rowType);
                     }
                 }
             }
+            Logging.LogLineIf(fDebugTrace, "AddDirectoriesAndMetadataLists_FromPersistedStorage(): entered.");
         }
 
         private static void AddBlacklistedFilesList_FromPersistedStorage()
         {
+            fDebugTrace = fDebugOutput && fDebugAtTraceLevel;
+
+            Logging.LogLineIf(fDebugTrace, "AddBlacklistedFilesList_FromPersistedStorage(): entered.");
+
             bool readFromDisk = false;                  // Did we successfully read from disk?
             DataTable dtBlacklist = new DataTable();
 
@@ -343,7 +384,7 @@ namespace ScotSoft.PattySaver
             }
             catch (Exception ex)
             {
-                Logging.LogLine("Could not read Blacklist Config file from " + GetConfigSettingsBlacklistFileName() + "; Exception: " + ex.Message);
+                Logging.LogLineIf(fDebugOutput, "Could not read Blacklist Config file from " + GetConfigSettingsBlacklistFileName() + "; Exception: " + ex.Message);
             }
 
             // If we didn't successfully read from disk, set Default configuraton value.
@@ -359,10 +400,15 @@ namespace ScotSoft.PattySaver
                     BlacklistedFilenames.Add(new KeyValuePair<DateTime, string>((DateTime)dtBlacklist.Rows[i]["DateStamp"], (string)dtBlacklist.Rows[i]["FullFilename"]));
                 }
             }
+            Logging.LogLineIf(fDebugTrace, "AddBlacklistedFilesList_FromPersistedStorage(): exiting.");
         }
 
         private static void SetNonListData_FromPersistedStorage()
         {
+            fDebugTrace = fDebugOutput && fDebugAtTraceLevel;
+
+            Logging.LogLineIf(fDebugTrace, "SetNonListData_FromPersistedStorage(): entered.");
+
             bool readFromDisk = false;
             DataTable dtData = new DataTable();
 
@@ -373,7 +419,7 @@ namespace ScotSoft.PattySaver
             }
             catch (Exception ex)
             {
-                Logging.LogLine("Could not read Data Config file from " + GetConfigSettingsDataFileName() + "; Exception: " + ex.Message);
+                Logging.LogLineIf(fDebugOutput, "Could not read Data Config file from " + GetConfigSettingsDataFileName() + "; Exception: " + ex.Message);
             }
 
             if (!readFromDisk)
@@ -403,6 +449,7 @@ namespace ScotSoft.PattySaver
                 dbgLastWindowLocationPoint = (System.Drawing.Point)row["dbgLastWindowLocationPoint"];
                 dbgLastWindowSize = (System.Drawing.Size)row["dbgLastWindowSize"];
             }
+            Logging.LogLineIf(fDebugTrace, "SetNonListData_FromPersistedStorage(): entered.");
         }
 
         private static void InitializeAndSetDefaultAllLists()

@@ -10,7 +10,6 @@ using System.Windows.Forms;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Drawing.Text;
-using System.Diagnostics;
 
 using ScotSoft.PattySaver;
 using ScotSoft.PattySaver.DebugUtils;
@@ -79,7 +78,7 @@ namespace ScotSoft.PattySaver
         #region Constructors
 
         /// <summary>
-        /// Constructor for the FullScreenForm, which is the primary display for our screen saver.
+        /// Constructor for the ScreenSaverForm, which is the primary display for our screen saver.
         /// </summary>
         /// <param name="Bounds">Size of the rectangle in which to draw form.</param>
         public ScreenSaverForm(Rectangle Bounds)
@@ -116,8 +115,14 @@ namespace ScotSoft.PattySaver
         /// <summary>
         /// Code that runs after the Form is created but before the Form is Displayed.
         /// </summary>
-        private void FullScreenForm_Load(object sender, EventArgs e)
+        private void ScreenSaverForm_Load(object sender, EventArgs e)
         {
+            bool fDebugOutput = true;
+            bool fDebugoutputTraceLevel = false;
+            bool fDebugTrace = fDebugOutput && fDebugoutputTraceLevel;
+
+            Logging.LogLineIf(fDebugTrace, "ScreenSaverForm_Load(): entered.");
+
             // Scot, this runs immediately after the constructor (well, almost. There are events which can come in 
             // between constructor and Load (resize events, etc). Here we prep and initialize everything before we show the Form.
             // After that, it's all a matter of reacting to events (clicks, keypresses, timers, etc).
@@ -130,6 +135,8 @@ namespace ScotSoft.PattySaver
             ourSlideshow.DeferralIntervalInMilliseconds = ourSlideshow.IntervalInMilliSeconds;
 
             // if we're running in ScreenSaverMode, go fullscreen, etc.  If not, make us resizable, etc.
+            Logging.LogLineIf(fDebugTrace, "ScreenSaverForm_Load(): entering or exiting ScreenSaverWindowStyle, as appropriate.");
+
             if (Modes.fOpenInScreenSaverMode)
             {
                 EnterScreenSaverWindowStyle();
@@ -161,7 +168,7 @@ namespace ScotSoft.PattySaver
             // colordlg = new ColorDialog();
 
             // Bind the MouseWheel event (can't be done from designer)
-            MouseWheel += FullScreenForm_MouseWheel;
+            MouseWheel += ScreenSaverForm_MouseWheel;
 
             // Add the context menu
             this.ContextMenuStrip = contextMenuMain;
@@ -171,14 +178,24 @@ namespace ScotSoft.PattySaver
 
             // Now lets show a picture immediately.
             // Create the MainFiles object - this leaves the index pointed at -1
-            MainFiles = new MainFileInfoSource((List<DirectoryInfo>)SettingsInfo.GetListOfDirectoryInfo(), SettingsInfo.GetBlacklistedFullFilenames(), SettingsInfo.UseRecursion, SettingsInfo.ShuffleMode);
+            Logging.LogLineIf(fDebugTrace, "ScreenSaverForm_Load(): creating MainFiles, should kick off disk scan.");
+            MainFiles = new MainFileInfoSource(
+                (List<DirectoryInfo>)SettingsInfo.GetListOfDirectoryInfo(), 
+                SettingsInfo.GetBlacklistedFullFilenames(), 
+                SettingsInfo.UseRecursion, 
+                SettingsInfo.ShuffleMode);
+
+            Logging.LogLineIf(fDebugTrace, "ScreenSaverForm_Load(): calling DoPreviousOrNext(false).");
             DoPreviousOrNext(false);
 
             // If we're in screensaverMode, start the slideshow
-            if (Modes.fOpenInScreenSaverMode) ourSlideshow.Enter();
+            if (Modes.fOpenInScreenSaverMode) ourSlideshow.Start();
 
             fInFormLoad = false;
             fFormLoadHasCompleted = true;
+
+            Logging.LogLineIf(fDebugTrace, "ScreenSaverForm_Load(): exiting.");
+
         }
 
         /// <summary>
@@ -186,17 +203,17 @@ namespace ScotSoft.PattySaver
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FullScreenForm_Deactivate(object sender, EventArgs e)
+        private void ScreenSaverForm_Deactivate(object sender, EventArgs e)
         {
             bool fDebugOutput = true;
-            bool fDebugoutputTraceLevel = true;
+            bool fDebugoutputTraceLevel = false;
             bool fDebugTrace = fDebugOutput && fDebugoutputTraceLevel;
 
-            Debug.WriteLineIf(fDebugTrace, "FullScreenForm_Deactivate(): entering.");
+            Logging.LogLineIf(fDebugTrace, "ScreenSaverForm_Deactivate(): entered.");
 
             if (ourSlideshow.IsRunning)
             {
-                Debug.WriteLineIf(fDebugTrace, "   FullScreenForm_Deactivate(): turning off SlideshowMode.");
+                Logging.LogLineIf(fDebugTrace, "   ScreenSaverForm_Deactivate(): turning off SlideshowMode.");
 
                 fWasInSlideshowModeWhenDeactivated = true;
                 ourSlideshow.Exit();
@@ -204,11 +221,11 @@ namespace ScotSoft.PattySaver
 
             if (fScreenSaverWindowStyle && !fShowingDialog)   // don't exit ScreenSaverWindowStyle if we're just showing our own dialog
             {
-                Debug.WriteLineIf(fDebugTrace, "   FullScreenForm_Deactivate(): Exiting ScreenSaverWindowStyle.");
+                Logging.LogLineIf(fDebugTrace, "   ScreenSaverForm_Deactivate(): Exiting ScreenSaverWindowStyle.");
                 ExitScreenSaverWindowStyle();
             }
 
-            Debug.WriteLineIf(fDebugTrace, "FullScreenForm_Deactivate(): exiting.");
+            Logging.LogLineIf(fDebugTrace, "ScreenSaverForm_Deactivate(): exiting.");
         }
 
         /// <summary>
@@ -216,36 +233,36 @@ namespace ScotSoft.PattySaver
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FullScreenForm_Activated(object sender, EventArgs e)
-        {
-            bool fDebugOutput = true;
-            bool fDebugoutputTraceLevel = true;
-            bool fDebugTrace = fDebugOutput && fDebugoutputTraceLevel;
-
-            // never try to re-enter ScreenSaverWindowStyle when activating, half of Alt-Tab
-            // events we don't get the Activated event 
-
-            Debug.WriteLineIf(fDebugTrace, "FullScreenForm_Activated(): entering.");
-
-            if (fWasInSlideshowModeWhenDeactivated)
-            {
-                Debug.WriteLineIf(fDebugTrace, "   FullScreenForm_Activated(): Entering ScreenSaverWindowStyle.");
-                ourSlideshow.Enter();
-            }
-
-            Debug.WriteLineIf(fDebugTrace, "FullScreenForm_Activated(): exiting.");
-        }
-
-        /// <summary>
-        /// Code that runs when the Form knows it is about to Close, but has not yet Closed.
-        /// </summary>       
-        private void FullScreenForm_FormClosing(object sender, FormClosingEventArgs e)
+        private void ScreenSaverForm_Activated(object sender, EventArgs e)
         {
             bool fDebugOutput = true;
             bool fDebugoutputTraceLevel = false;
             bool fDebugTrace = fDebugOutput && fDebugoutputTraceLevel;
 
-            Debug.WriteLineIf(fDebugTrace, "FullScreenForm_FormClosing(): entering.");
+            // never try to re-enter ScreenSaverWindowStyle when activating, half of Alt-Tab
+            // events we don't get the Activated event 
+
+            Logging.LogLineIf(fDebugTrace, "ScreenSaverForm_Activated(): entered.");
+
+            if (fWasInSlideshowModeWhenDeactivated)
+            {
+                Logging.LogLineIf(fDebugTrace, "   ScreenSaverForm_Activated(): Entering ScreenSaverWindowStyle.");
+                ourSlideshow.Start();
+            }
+
+            Logging.LogLineIf(fDebugTrace, "ScreenSaverForm_Activated(): exiting.");
+        }
+
+        /// <summary>
+        /// Code that runs when the Form knows it is about to Close, but has not yet Closed.
+        /// </summary>       
+        private void ScreenSaverForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            bool fDebugOutput = true;
+            bool fDebugoutputTraceLevel = false;
+            bool fDebugTrace = fDebugOutput && fDebugoutputTraceLevel;
+
+            Logging.LogLineIf(fDebugTrace, "ScreenSaverForm_FormClosing(): entered.");
 
             // This is your opportunity to prompt the user to save, or 
             // Cancel the Closure. You may end up here because somebody closed your window
@@ -272,7 +289,7 @@ namespace ScotSoft.PattySaver
             // Save the ConfigSettings
             SettingsInfo.SaveConfigSettingsToStorage();
 
-            Debug.WriteLineIf(fDebugTrace, "FullScreenForm_FormClosing(): exiting.");
+            Logging.LogLineIf(fDebugTrace, "ScreenSaverForm_FormClosing(): exiting.");
 
             this.fInFormClosing = false;
         }
@@ -280,22 +297,22 @@ namespace ScotSoft.PattySaver
         /// <summary>
         /// Code that runs immediatelly after the Form Closes, but before the Form Object passes out of Scope.
         /// </summary>
-        private void FullScreenForm_FormClosed(object sender, FormClosedEventArgs e)
+        private void ScreenSaverForm_FormClosed(object sender, FormClosedEventArgs e)
         {
             bool fDebugOutput = true;
-            bool fDebugoutputTraceLevel = true;
+            bool fDebugoutputTraceLevel = false;
             bool fDebugTrace = fDebugOutput && fDebugoutputTraceLevel;
 
-            Debug.WriteLineIf(fDebugTrace, "FullScreenForm_FormClosed(): entering.");
+            Logging.LogLineIf(fDebugTrace, "ScreenSaverForm_FormClosed(): entered.");
 
             fFormClosingHasCompleted = true;
 
-            // Any time the FullScreenForm closes, quit the app.
-            Debug.WriteLineIf(fDebugTrace, "   FullScreenForm_FormClosed(): calling Application.Exit().");
+            // Any time the ScreenSaverForm closes, quit the app.
+            Logging.LogLineIf(fDebugTrace, "   ScreenSaverForm_FormClosed(): calling Application.Exit().");
             CancelEventArgs cea = new CancelEventArgs();
             Application.Exit(cea);
-            Debug.WriteLineIf(fDebugTrace, "   FullScreenForm_FormClosed(): CancelEventArgs.Cancel: " + cea.Cancel.ToString());
-            Debug.WriteLineIf(fDebugTrace, "FullScreenForm_FormClosed(): exiting.");
+            Logging.LogLineIf(fDebugTrace, "   ScreenSaverForm_FormClosed(): CancelEventArgs.Cancel: " + cea.Cancel.ToString());
+            Logging.LogLineIf(fDebugTrace, "ScreenSaverForm_FormClosed(): exiting.");
         }
 
         /// <summary>
@@ -303,18 +320,26 @@ namespace ScotSoft.PattySaver
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FullScreenForm_SizeChanged(object sender, EventArgs e)
+        private void ScreenSaverForm_SizeChanged(object sender, EventArgs e)
         {
+            bool fDebugOutput = true;
+            bool fDebugoutputTraceLevel = false;
+            bool fDebugTrace = fDebugOutput && fDebugoutputTraceLevel;
+
+            Logging.LogLineIf(fDebugTrace, "ScreenSaverForm_SizeChanged(): entered.");
+
             if (fConstructorHasCompleted && fFormLoadHasCompleted)  // don't react during constructor or form_load
             {
                 if (fScreenSaverWindowStyle)
                 {
                     if (WindowState == FormWindowState.Minimized)
                     {
+                        Logging.LogLineIf(fDebugTrace, "ScreenSaverForm_SizeChanged(): exiting the slideshow because we are minimized.");
                         ourSlideshow.Exit();
                     }
                 }
             }
+            Logging.LogLineIf(fDebugTrace, "ScreenSaverForm_SizeChanged(): exiting.");
         }
 
         /// <summary>
@@ -324,8 +349,16 @@ namespace ScotSoft.PattySaver
         /// <param name="e"></param>
         private void FontDialog_Apply(object sender, System.EventArgs e)
         {
+            bool fDebugOutput = true;
+            bool fDebugoutputTraceLevel = false;
+            bool fDebugTrace = fDebugOutput && fDebugoutputTraceLevel;
+
+            Logging.LogLineIf(fDebugTrace, "FontDialog_Apply(): entered.");
+
             metaFontData.SetPropertiesFromFontDlg(fontdlg);
             pbMain.Invalidate();
+
+            Logging.LogLineIf(fDebugTrace, "ScreenSaverForm_SizeChanged(): exiting.");
         }
 
         #endregion Form Events
@@ -336,13 +369,24 @@ namespace ScotSoft.PattySaver
         // resides in sections closer to their purpose.
 
         // Code which runs every time the pictureBox is Painted
-        private void pbMainPhoto_Paint(object sender, PaintEventArgs e)
+        private void pbMain_Paint(object sender, PaintEventArgs e)
         {
+            bool fDebugOutput = true;
+            bool fDebugoutputTraceLevel = false;
+            bool fDebugTrace = fDebugOutput && fDebugoutputTraceLevel;
+
+            Logging.LogLineIf(fDebugTrace, "pbMain_Paint(): entered.");
+
             // Draw the image metadata and ETF data
             if (fConstructorHasCompleted && fFormLoadHasCompleted)
             {
                 PaintText(e);
             }
+            else
+            {
+                Logging.LogLineIf(fDebugTrace, "pbMain_Paint(): not painting text, as fConstructorHasCompleted && fFormLoadHasCompleted != true.");
+            }
+            Logging.LogLineIf(fDebugTrace, "pbMain_Paint(): exiting.");
         }
 
         // For Context Menu Events, see file KeyboardMouseMenu.cs
@@ -367,7 +411,7 @@ namespace ScotSoft.PattySaver
             bool fDebugOutputTraceLevel = false;
             bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
 
-            Debug.WriteLineIf(fDebugTrace, "LoadFileIntoPictureBoxAsync(): entering.");
+            Logging.LogLineIf(fDebugTrace, "LoadFileIntoPictureBoxAsync(): entered.");
 
             try
             {
@@ -404,17 +448,17 @@ namespace ScotSoft.PattySaver
                 }
                 else  // file was null, or didn't exist any more
                 {
-                    Debug.WriteLineIf(fDebugOutput, "   LoadFileIntoPictureBoxAsync(): File was null or did not exist.");
+                    Logging.LogLineIf(fDebugOutput, "   LoadFileIntoPictureBoxAsync(): File was null or did not exist.");
                     ShowNoImageError();
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLineIf(fDebugOutput, "  * LoadFileIntoPictureBoxAsync(): Exception loading image from file '" + file.FullName + "'. Exception: " + ex.Message);
+                Logging.LogLineIf(fDebugOutput, "  * LoadFileIntoPictureBoxAsync(): Exception loading image from file '" + file.FullName + "'. Exception: " + ex.Message);
                 ShowNoImageError();
             }
 
-            Debug.WriteLineIf(fDebugTrace, "LoadFileIntoPictureBoxAsync(): exiting.");
+            Logging.LogLineIf(fDebugTrace, "LoadFileIntoPictureBoxAsync(): exiting.");
 
         }
 
@@ -429,7 +473,7 @@ namespace ScotSoft.PattySaver
             bool fDebugOutputTraceLevel = false;
             bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
 
-            Debug.WriteLineIf(fDebugTrace, "pbMain_LoadCompleted(): entering.");
+            Logging.LogLineIf(fDebugTrace, "pbMain_LoadCompleted(): entered.");
 
             // Our memory footprint goes up with each image loaded, until the CLR thinks
             // it looks too high; then the CLR calls GC.Collect to force garbage collection.
@@ -448,7 +492,7 @@ namespace ScotSoft.PattySaver
                     output += " new high (old high was " + dbgTotalMemoryHighWaterMark + ")";
                     dbgTotalMemoryHighWaterMark = newTotalMemory;
                 }
-                Debug.WriteLineIf(fDebugTrace, output);
+                Logging.LogLineIf(fDebugTrace, output);
             }
 
             // In theory, if we are here, file has loaded and been drawn. I certainly hope so.
@@ -460,7 +504,7 @@ namespace ScotSoft.PattySaver
             if (pbMain.Image.PhysicalDimension.Height < pbMain.Height &&
                 pbMain.Image.PhysicalDimension.Width < pbMain.Width) pbMain.SizeMode = PictureBoxSizeMode.CenterImage;
 
-            Debug.WriteLineIf(fDebugTrace, "pbMainPhoto_LoadCompleted(): exiting.");
+            Logging.LogLineIf(fDebugTrace, "pbMainPhoto_LoadCompleted(): exiting.");
         }
 
         /// <summary>
@@ -470,10 +514,18 @@ namespace ScotSoft.PattySaver
         /// <returns></returns>
         private string GetMetadata(FileInfo file)
         {
+            bool fDebugOutput = true;
+            bool fDebugOutputTraceLevel = false;
+            bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
+
+            Logging.LogLineIf(fDebugTrace, "GetMetadata(): entered.");
+
             string retVal = "";
             retVal += GetBasicFileInfo(file) + Environment.NewLine;
             retVal += GetImageMetadata(file) + Environment.NewLine;
             retVal += GetExtendedFileDetails(file);
+
+            Logging.LogLineIf(fDebugTrace, "GetMetadata(): exiting.");
             return retVal;
         }
 
@@ -505,10 +557,6 @@ namespace ScotSoft.PattySaver
         /// <returns></returns>
         private string GetImageMetadata(FileInfo file)
         {
-            bool fDebugOutput = true;
-            bool fDebugOutputTraceLevel = true;
-            bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
-
             string retVal = "";
             string strTemp;
 
@@ -552,7 +600,7 @@ namespace ScotSoft.PattySaver
             bool fDebugOutputTraceLevel = false;
             bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
 
-            Debug.WriteLineIf(fDebugTrace, "GetExtendedFileDetails(): entering.");
+            Logging.LogLineIf(fDebugTrace, "GetExtendedFileDetails(): entered.");
 
             string retVal = "";
 
@@ -568,7 +616,7 @@ namespace ScotSoft.PattySaver
             {
                 if (!MainFiles.ShellDict.TryGetValue(file.DirectoryName, out objFolder))
                 {
-                    Logging.LogLine("  GetExtendedFileDetails(): Failed to get objFolder from Dictionary. Falling back to read from disk method.");
+                    Logging.LogLineIf(fDebugOutput, "  GetExtendedFileDetails(): Failed to get objFolder from Dictionary. Falling back to read from disk method.");
                     GetExtendedFileDetails(file, false);
                 }
             }
@@ -601,7 +649,7 @@ namespace ScotSoft.PattySaver
                 retVal += "Tags: " + Environment.NewLine + "  " + stReturn;
             }
 
-            Debug.WriteLineIf(fDebugTrace, "GetExtendedFileDetails(): exiting.");
+            Logging.LogLineIf(fDebugTrace, "GetExtendedFileDetails(): exiting.");
             return retVal;
         }
 
@@ -613,8 +661,8 @@ namespace ScotSoft.PattySaver
             pbMain.Image = PattySaverResources.noimage;
             pbMain.ImageLocation = String.Empty;
             fShowingEmbeddedFileImage = true;
-            currentImageMetadata = "What_just_happened.jpg" + Environment.NewLine +
-                @"C:\Well That's Just Great\...\Just Perfect" + Environment.NewLine +
+            currentImageMetadata = "Well_that_happened.jpg" + Environment.NewLine +
+                @"C:\That's Just Great\...\Just Perfect" + Environment.NewLine +
                 "Date: Right About Now" + Environment.NewLine +
                 "Tags:" + Environment.NewLine +
                 "  No picture" + Environment.NewLine +
@@ -718,28 +766,33 @@ namespace ScotSoft.PattySaver
         /// </summary>
         private void EnterExploreFolderMode()
         {
+            bool fDebugOutput = true;
+            bool fDebugOutputTraceLevel = false;
+            bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
+
+            Logging.LogLineIf(fDebugTrace, "EnterExploreFolderMode(): entered.");
+
             // TODO: convert LogLine to WriteLineIf
-            Logging.LogLine("EnterExploreFolderMode(): Entering method.");
             if (fInETFMode)
             {
-                Logging.LogLine("    EnterExploreFolderMode(); Not Entering Explore This Folder mode, we're already in it.");
-                Logging.LogLine("EnterExploreFolderMode(): Exiting method.");
+                Logging.LogLineIf(fDebugTrace, "    EnterExploreFolderMode(); Not Entering Explore This Folder mode, we're already in it.");
+                Logging.LogLineIf(fDebugTrace, "EnterExploreFolderMode(): Exiting method.");
                 return;
             }
 
             if (fShowingEmbeddedFileImage)
             {
                 // do nothing, we're showing an embedded resource
-                Logging.LogLine("   EnterExploreFolderMode(): called while we were displaying an embedded image, not a file. How did that happen?");
+                Logging.LogLineIf(fDebugOutput, "   EnterExploreFolderMode(): called while we were displaying an embedded image, not a file. How did that happen?");
                 MessageBox.Show("Explore This Folder is not available right now.", ProductName + " - Nice Try",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Logging.LogLine("EnterExploreFolderMode(): Exiting method.");
+                Logging.LogLineIf(fDebugTrace, "EnterExploreFolderMode(): Exiting method.");
                 return;
             }
 
             if (String.IsNullOrEmpty(pbMain.ImageLocation) || String.IsNullOrWhiteSpace(pbMain.ImageLocation))
             {
-                System.Diagnostics.Debug.WriteLine("   * EnterExploreFolderMode(): Not entering Explore This Folder mode because one of these failed:" + Environment.NewLine +
+                Logging.LogLineIf(fDebugOutput, "   * EnterExploreFolderMode(): Not entering Explore This Folder mode because one of these failed:" + Environment.NewLine +
                     "String.IsNullOrEmpty(pbMainPhoto.ImageLocation) || String.IsNullOrWhiteSpace(pbMainPhoto.ImageLocation)");
 
                 System.Diagnostics.Debug.Assert((false), "   EnterExploreFolderMode():  Not entering Explore This Folder mode, as one of these failed:" + Environment.NewLine +
@@ -749,21 +802,21 @@ namespace ScotSoft.PattySaver
                 MessageBox.Show("There has been an error. Cannot explore this folder at this time." + Environment.NewLine + Environment.NewLine +
                 "Filename: " + pbMain.ImageLocation + Environment.NewLine, ProductName + " - Error",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Logging.LogLine("EnterExploreFolderMode(): Exiting method.");
+                Logging.LogLineIf(fDebugTrace, "EnterExploreFolderMode(): Exiting method.");
                 return;
             }
 
             bool fWasInSlideshowMode = ourSlideshow.IsRunning;
             string fullFilename = pbMain.ImageLocation;
 
-            Logging.LogLine("   EnterExploreFolderMode(): Attempting to enter ETF mode for file: " + pbMain.ImageLocation);
-            Logging.LogLine("   EnterExploreFolderMode(): MainFiles CurrentIndex / Count: " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
+            Logging.LogLineIf(fDebugTrace, "   EnterExploreFolderMode(): Attempting to enter ETF mode for file: " + pbMain.ImageLocation);
+            Logging.LogLineIf(fDebugTrace, "   EnterExploreFolderMode(): MainFiles CurrentIndex / Count: " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
 
-            Logging.LogLine("   EnterExploreFolderMode(): About to call MainFiles.GetFileByFullName(CurrentFileName)...");
+            Logging.LogLineIf(fDebugTrace, "   EnterExploreFolderMode(): About to call MainFiles.GetFileByFullName(CurrentFileName)...");
             FileInfo etfEntryFile = MainFiles.GetFileByFullName(fullFilename);
             if (etfEntryFile == null)
             {
-                Logging.LogLine("   * EnterExploreFolderMode(): etfEntryFile == null.");
+                Logging.LogLineIf(fDebugOutput, "   * EnterExploreFolderMode(): etfEntryFile == null.");
 #if DEBUG
                 System.Diagnostics.Debug.Assert((false), "   EnterExploreFolderMode(): etfEntryFile == null.", "Will throw exception when you click Continue.");
 #endif
@@ -771,12 +824,12 @@ namespace ScotSoft.PattySaver
             }
 
             // Create a new FileInfoSource, and store it at the FormWide level
-            Logging.LogLine("   EnterExploreFolderMode(): About to create ETF object...");
+            Logging.LogLineIf(fDebugTrace, "   EnterExploreFolderMode(): About to create ETF object...");
             ETFFiles = new ExploreThisFolderFileInfoSource(MainFiles, etfEntryFile);
 
             if ((ETFFiles != null) && (ETFFiles.DirectoryInfo != null))   // if there was an error etf.DirectoryInfo will be null. Probably.
             {
-                Logging.LogLine("   EnterExploreFolderMode(): ETF object created successfully.");
+                Logging.LogLineIf(fDebugTrace, "   EnterExploreFolderMode(): ETF object created successfully.");
                 fInETFMode = true;
                 fWasInSlideshowModeWhenETFStarted = fWasInSlideshowMode;
                 if (fWasInSlideshowMode) ourSlideshow.Exit();
@@ -790,9 +843,9 @@ namespace ScotSoft.PattySaver
                 fInETFMode = false;
                 ETFFiles = null;
                 if (fWasInSlideshowMode) fWasInSlideshowModeWhenETFStarted = false;
-                if (fWasInSlideshowMode) ourSlideshow.Enter();
+                if (fWasInSlideshowMode) ourSlideshow.Start();
 
-                Logging.LogLine("   * EnterExploreFolderMode(): FAILED test: (ETFFiles != null) && (ETFFiles.DirectoryInfo != null)");
+                Logging.LogLineIf(fDebugOutput, "   * EnterExploreFolderMode(): FAILED test: (ETFFiles != null) && (ETFFiles.DirectoryInfo != null)");
 #if DEBUG
                 System.Diagnostics.Debug.Assert((false), "   EnterExploreFolderMode(): FAILED test: (ETFFiles != null) && (ETFFiles.DirectoryInfo != null).", "Will throw exception when you click Continue.");
                 throw new InvalidOperationException("   EnterExploreFolderMode(): FAILED test: (ETFFiles != null) && (ETFFiles.DirectoryInfo != null).");
@@ -805,12 +858,12 @@ namespace ScotSoft.PattySaver
 #endif
             }
 
-            Logging.LogLine("   EnterExploreFolderMode(): Entered ETF mode for file: " + fullFilename);
-            Logging.LogLine("   EnterExploreFolderMode(): ETFFiles CurrentIndex / Count: " + ETFFiles.CurrentIndex + " / " + ETFFiles.Count);
+            Logging.LogLineIf(fDebugTrace, "   EnterExploreFolderMode(): Entered ETF mode for file: " + fullFilename);
+            Logging.LogLineIf(fDebugTrace, "   EnterExploreFolderMode(): ETFFiles CurrentIndex / Count: " + ETFFiles.CurrentIndex + " / " + ETFFiles.Count);
 
             // Tell PictureBox to update so new text will be drawn
             pbMain.Invalidate();
-            Logging.LogLine("EnterExploreFolderMode(): Exiting method.");
+            Logging.LogLineIf(fDebugTrace, "EnterExploreFolderMode(): Exiting method.");
 
         }
 
@@ -820,32 +873,36 @@ namespace ScotSoft.PattySaver
         /// <param name="fPrevious"></param>
         private void ExitExploreFolderMode(bool fPrevious, bool fExternallyCalled = false)
         {
+            bool fDebugOutput = true;
+            bool fDebugOutputTraceLevel = false;
+            bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
+
             // TODO: convert LogLine to WriteLineIf
-            Logging.LogLine("ExitExploreFolderMode(): Entering method, fExternallyCalled = " + fExternallyCalled);
+            Logging.LogLineIf(fDebugTrace, "ExitExploreFolderMode(): Entering method, fExternallyCalled = " + fExternallyCalled);
 
             if (fInETFMode)
             {
-                Logging.LogLine("   ExitExploreFolderMode(): MainFile CurrentIndex / Count: " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
-                Logging.LogLine("   ExitExploreFolderMode(): exiting mode by going " + ((fPrevious) ? "backwards." : "forwards."));
+                Logging.LogLineIf(fDebugTrace, "   ExitExploreFolderMode(): MainFile CurrentIndex / Count: " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
+                Logging.LogLineIf(fDebugTrace, "   ExitExploreFolderMode(): exiting mode by going " + ((fPrevious) ? "backwards." : "forwards."));
 
                 // Kill off the ETF object
                 ETFFiles = null;
                 fInETFMode = false;
 
                 // Get the file in the direction passed to us
-                Logging.LogLine("   ExitExploreFolderMode(): about to call DoPreviousOrNext(fPrevious)...");
+                Logging.LogLineIf(fDebugTrace, "   ExitExploreFolderMode(): about to call DoPreviousOrNext(fPrevious)...");
                 DoPreviousOrNext(fPrevious);
-                Logging.LogLine("   ExitExploreFolderMode(): After DoPreviousOrNext(), MainFiles CurrentIndex / Count: " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
+                Logging.LogLineIf(fDebugTrace, "   ExitExploreFolderMode(): After DoPreviousOrNext(), MainFiles CurrentIndex / Count: " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
 
                 // Restart the slideshow if necessary
-                Logging.LogLine("   ExitExploreFolderMode(): about to restart slideshow, if necessary.");
-                if (fWasInSlideshowModeWhenETFStarted) ourSlideshow.Enter();
+                Logging.LogLineIf(fDebugTrace, "   ExitExploreFolderMode(): about to restart slideshow, if necessary.");
+                if (fWasInSlideshowModeWhenETFStarted) ourSlideshow.Start();
             }
             else
             {
-                Logging.LogLine("ExitExploreFolderMode(): Not exiting mode, as we were not in ETF mode.");
+                Logging.LogLineIf(fDebugTrace, "ExitExploreFolderMode(): Not exiting mode, as we were not in ETF mode.");
             }
-            Logging.LogLine("ExitExploreFolderMode(): Exiting method.");
+            Logging.LogLineIf(fDebugTrace, "ExitExploreFolderMode(): Exiting method.");
         }
 
         /// <summary>
@@ -857,12 +914,12 @@ namespace ScotSoft.PattySaver
             bool fDebugOutputTraceLevel = false;
             bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
 
-            Debug.WriteLineIf(fDebugTrace, "DoArrowKeyUp(): Entering.");
+            Logging.LogLineIf(fDebugTrace, "DoArrowKeyUp(): entered.");
 
             if (fWaitingForFileToLoad)
             {
                 // do nothing
-                Debug.WriteLineIf(fDebugOutput, "   DoArrowKeyUp(): Ignoring key, still waiting for file to load.");
+                Logging.LogLineIf(fDebugOutput, "   DoArrowKeyUp(): Ignoring key, still waiting for file to load.");
                 return;
             }
 
@@ -882,7 +939,7 @@ namespace ScotSoft.PattySaver
                 EnterExploreFolderMode();
             }
 
-            Debug.WriteLineIf(fDebugTrace, "DoArrowKeyUp(): Exiting.");
+            Logging.LogLineIf(fDebugTrace, "DoArrowKeyUp(): Exiting.");
         }
 
         /// <summary>
@@ -894,12 +951,12 @@ namespace ScotSoft.PattySaver
             bool fDebugOutputTraceLevel = false;
             bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
 
-            Debug.WriteLineIf(fDebugTrace, "DoArrowKeyDown(): Entering.");
+            Logging.LogLineIf(fDebugTrace, "DoArrowKeyDown(): entered.");
 
             if (fWaitingForFileToLoad)
             {
                 // do nothing
-                Debug.WriteLineIf(fDebugOutput, "   DoArrowKeyDown(): Ignoring key, still waiting for file to load.");
+                Logging.LogLineIf(fDebugOutput, "   DoArrowKeyDown(): Ignoring key, still waiting for file to load.");
                 return;
             }
 
@@ -918,7 +975,7 @@ namespace ScotSoft.PattySaver
 
                 EnterExploreFolderMode();
             }
-            Debug.WriteLineIf(fDebugTrace, "DoArrowKeyDown(): Exiting.");
+            Logging.LogLineIf(fDebugTrace, "DoArrowKeyDown(): Exiting.");
         }
 
         /// <summary>
@@ -930,7 +987,7 @@ namespace ScotSoft.PattySaver
             bool fDebugOutputTraceLevel = false;
             bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
 
-            Debug.WriteLineIf(fDebugTrace, "DoArrowKeyLeft(): Entering.");
+            Logging.LogLineIf(fDebugTrace, "DoArrowKeyLeft(): entered.");
 
             // we need to either:
             // 0. If in a state where we should just ignore the key, do that
@@ -941,7 +998,7 @@ namespace ScotSoft.PattySaver
             if (fWaitingForFileToLoad)
             {
                 // do nothing
-                Debug.WriteLineIf(fDebugOutput, "   DoArrowKeyLeft(): Ignoring key, still waiting for file to load.");
+                Logging.LogLineIf(fDebugOutput, "   DoArrowKeyLeft(): Ignoring key, still waiting for file to load.");
                 return;
             }
 
@@ -950,16 +1007,16 @@ namespace ScotSoft.PattySaver
                 if (ourSlideshow.Defer()) // returns false if left arrow keys struck close to each other
                 {
                     // we just deferred
-                    Debug.WriteLineIf(fDebugTrace, "   DoArrowKeyLeft(): Defer returned true.");
+                    Logging.LogLineIf(fDebugTrace, "   DoArrowKeyLeft(): Defer returned true.");
                     return;
                 }
                 else
                 {
                     // user pressed left key twice in a row
-                    Debug.WriteLineIf(fDebugTrace, "   DoArrowKeyLeft(): Defer returned false, DoPreviousOrNext() will be called.");
+                    Logging.LogLineIf(fDebugTrace, "   DoArrowKeyLeft(): Defer returned false, DoPreviousOrNext() will be called.");
                     ourSlideshow.Exit();
                     DoPreviousOrNext(true);
-                    ourSlideshow.Enter();
+                    ourSlideshow.Start();
                     return;
                 }
             }
@@ -968,7 +1025,7 @@ namespace ScotSoft.PattySaver
                 DoPreviousOrNext(true);
             }
 
-            Debug.WriteLineIf(fDebugTrace, "DoArrowKeyLeft(): Exiting.");
+            Logging.LogLineIf(fDebugTrace, "DoArrowKeyLeft(): Exiting.");
         }
 
         /// <summary>
@@ -980,7 +1037,7 @@ namespace ScotSoft.PattySaver
             bool fDebugOutputTraceLevel = false;
             bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
 
-            Debug.WriteLineIf(fDebugTrace, "DoArrowKeyRight(): Entering.");
+            Logging.LogLineIf(fDebugTrace, "DoArrowKeyRight(): entered.");
 
             // we need to either:
             // 0. If in a state where we should just ignore the key, do that
@@ -990,7 +1047,7 @@ namespace ScotSoft.PattySaver
             if (fWaitingForFileToLoad)
             {
                 // do nothing
-                Debug.WriteLineIf(fDebugOutput, "   DoArrowKeyRight(): Ignoring key, still waiting for file to load.");
+                Logging.LogLineIf(fDebugOutput, "   DoArrowKeyRight(): Ignoring key, still waiting for file to load.");
                 return;
             }
 
@@ -998,14 +1055,14 @@ namespace ScotSoft.PattySaver
             {
                 ourSlideshow.Exit();
                 DoPreviousOrNext(false);
-                ourSlideshow.Enter();
+                ourSlideshow.Start();
                 return;
             }
             else
             {
                 DoPreviousOrNext(false);
             }
-            Debug.WriteLineIf(fDebugTrace, "DoArrowKeyRight(): Exiting.");
+            Logging.LogLineIf(fDebugTrace, "DoArrowKeyRight(): Exiting.");
         }
 
         /// <summary>
@@ -1018,15 +1075,15 @@ namespace ScotSoft.PattySaver
             bool fDebugOutputTraceLevel = true;
             bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
 
-            Debug.WriteLineIf(fDebugTrace, "DoBlacklistFile(): Entering method.");
+            Logging.LogLineIf(fDebugTrace, "DoBlacklistFile(): Entering method.");
 
             // ------------  Let's Try To Get Out of Doing It  ------------ //
 
             if (fShowingEmbeddedFileImage)
             {
                 // do nothing, we're showing an embedded resource
-                Debug.WriteLineIf(fDebugTrace, "   * DoBlacklistFile(): called while we were displaying an embedded image, not a file.");
-                Debug.WriteLineIf(fDebugTrace, "DoBlacklistFile(): Exiting method.");
+                Logging.LogLineIf(fDebugTrace, "   * DoBlacklistFile(): called while we were displaying an embedded image, not a file.");
+                Logging.LogLineIf(fDebugTrace, "DoBlacklistFile(): Exiting method.");
                 MessageBox.Show("You cannot blacklist this Picture.", ProductName + " - Nice Try",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
@@ -1034,7 +1091,7 @@ namespace ScotSoft.PattySaver
 
             if (String.IsNullOrEmpty(pbMain.ImageLocation) || String.IsNullOrWhiteSpace(pbMain.ImageLocation))
             {
-                Debug.WriteLineIf(fDebugOutput, "   * DoBlacklistFile(): Aborting, as one of these failed:" + Environment.NewLine +
+                Logging.LogLineIf(fDebugOutput, "   * DoBlacklistFile(): Aborting, as one of these failed:" + Environment.NewLine +
                     "String.IsNullOrEmpty(pbMainPhoto.ImageLocation) || String.IsNullOrWhiteSpace(pbMainPhoto.ImageLocation)");
 
                 System.Diagnostics.Debug.Assert((false), "   DoBlacklistFile(): Aborting, as one of these failed:" + Environment.NewLine +
@@ -1044,7 +1101,7 @@ namespace ScotSoft.PattySaver
                 MessageBox.Show("There has been an error. This Picture cannot be blacklisted." + Environment.NewLine + Environment.NewLine +
                 "Filename: " + pbMain.ImageLocation + Environment.NewLine, ProductName + " - Error",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Debug.WriteLineIf(fDebugTrace, "DoBlacklistFile(): Exiting method.");
+                Logging.LogLineIf(fDebugTrace, "DoBlacklistFile(): Exiting method.");
                 return;
             }
 
@@ -1052,7 +1109,7 @@ namespace ScotSoft.PattySaver
                         "Filename: " + pbMain.ImageLocation + Environment.NewLine, ProductName + " - Blacklist this Picture?",
                         MessageBoxButtons.OKCancel, MessageBoxIcon.Question) == System.Windows.Forms.DialogResult.Cancel)
             {
-                Debug.WriteLineIf(fDebugTrace, "DoBlacklistFile(): Exiting method.");
+                Logging.LogLineIf(fDebugTrace, "DoBlacklistFile(): Exiting method.");
                 return;
             }
 
@@ -1060,9 +1117,9 @@ namespace ScotSoft.PattySaver
 
             if (fInETFMode)
             {
-                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): ETF CurrentIndex / Count : " + ETFFiles.CurrentIndex + " / " + ETFFiles.Count);
-                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): Main CurrentIndex / Count : " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
-                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): About to call ETF.GetFileByFullName(CurrentFileName)...");
+                Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): ETF CurrentIndex / Count : " + ETFFiles.CurrentIndex + " / " + ETFFiles.Count);
+                Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): Main CurrentIndex / Count : " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
+                Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): About to call ETF.GetFileByFullName(CurrentFileName)...");
 
                 // get a FileInfo block from current file
                 FileInfo etfFileToBeBlacklisted = ETFFiles.GetFileByFullName(pbMain.ImageLocation);
@@ -1070,7 +1127,7 @@ namespace ScotSoft.PattySaver
 
                 if (etfFileToBeBlacklisted == null)
                 {
-                    Debug.WriteLineIf(fDebugOutput, "   * DoBlacklistFile(): etfFileToBeBlacklisted == null.");
+                    Logging.LogLineIf(fDebugOutput, "   * DoBlacklistFile(): etfFileToBeBlacklisted == null.");
 #if DEBUG
                     System.Diagnostics.Debug.Assert((false), "   DoBlacklistFile(): etfFileToBeBlacklisted == null.", "Will throw exception when you click Continue.");
 #endif
@@ -1079,28 +1136,28 @@ namespace ScotSoft.PattySaver
 
                 if (mainFileToBeBlacklisted == null)
                 {
-                    Debug.WriteLineIf(fDebugOutput, "   * DoBlacklistFile(): mainFileToBeBlacklisted == null.");
+                    Logging.LogLineIf(fDebugOutput, "   * DoBlacklistFile(): mainFileToBeBlacklisted == null.");
 #if DEBUG
                     System.Diagnostics.Debug.Assert((false), "   DoBlacklistFile(): mainFileToBeBlacklisted == null.", "Will throw exception when you click Continue.");
 #endif
                     throw new InvalidOperationException("   DoBlacklistFile(): mainFileToBeBlacklisted == null.");
                 }
 
-                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): fileToBeBlacklisted located at ETFIndex / MainIndex : " +
+                Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): fileToBeBlacklisted located at ETFIndex / MainIndex : " +
                     ETFFiles.IndexOf(etfFileToBeBlacklisted) + " / " + MainFiles.IndexOf(mainFileToBeBlacklisted));
 
                 // blacklist the file in the ETFIS list
-                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): About to call ETF.BlacklistCurrentFile()...");
+                Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): About to call ETF.BlacklistCurrentFile()...");
                 FileInfo nextFile; // unused, but required for next method
 
                 if (ETFFiles.BlacklistCurrentFile(out nextFile))
                 {
-                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): ETF.BlacklistCurrentFile() reports success.");
-                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): ETF CurrentIndex / Count : " + ETFFiles.CurrentIndex + " / " + ETFFiles.Count);
+                    Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): ETF.BlacklistCurrentFile() reports success.");
+                    Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): ETF CurrentIndex / Count : " + ETFFiles.CurrentIndex + " / " + ETFFiles.Count);
                 }
                 else
                 {
-                    Debug.WriteLineIf(fDebugOutput, "   * DoBlacklistFile(): ETF.BlacklistCurrentFile() reports FAILURE.");
+                    Logging.LogLineIf(fDebugOutput, "   * DoBlacklistFile(): ETF.BlacklistCurrentFile() reports FAILURE.");
 #if DEBUG
                     System.Diagnostics.Debug.Assert((false), "   DoBlacklistFile(): ETF.BlacklistCurrentFile() reports FAILURE.", "Will throw exception if you click Continue.");
                     throw new InvalidOperationException("   DoBlacklistFile(): ETF.BlacklistCurrentFile() reports FAILURE.");
@@ -1116,46 +1173,46 @@ namespace ScotSoft.PattySaver
                 // For the hell of it, validate nextFile, even though we will not use it
                 if (nextFile != null)
                 {
-                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): BlacklistCurrentFile() offers us as nextFile (which we will ignore): " + nextFile.FullName);
-                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): nextFile located at MainIndex : " + ETFFiles.IndexOf(nextFile));
+                    Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): BlacklistCurrentFile() offers us as nextFile (which we will ignore): " + nextFile.FullName);
+                    Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): nextFile located at MainIndex : " + ETFFiles.IndexOf(nextFile));
                 }
                 else
                 {
-                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): BlacklistCurrentFile() offers us nextFile == NULL. In theory this means that ETFFiles is now empty. Is it?");
-                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): Main CurrentIndex / Count : " + ETFFiles.CurrentIndex + " / " + ETFFiles.Count);
+                    Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): BlacklistCurrentFile() offers us nextFile == NULL. In theory this means that ETFFiles is now empty. Is it?");
+                    Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): Main CurrentIndex / Count : " + ETFFiles.CurrentIndex + " / " + ETFFiles.Count);
                 }
 #endif
 
                 // Now, remove the file from the Main List
                 if (!MainFiles.RemoveBlacklistedETFFile(mainFileToBeBlacklisted))
                 {
-                    Debug.WriteLineIf(fDebugOutput, "   * DoBlacklistFile(): MainFiles.RemoveBlacklistedETFFile(mainFileToBeBlacklisted) FAILED.");
+                    Logging.LogLineIf(fDebugOutput, "   * DoBlacklistFile(): MainFiles.RemoveBlacklistedETFFile(mainFileToBeBlacklisted) FAILED.");
 #if DEBUG
                     System.Diagnostics.Debug.Assert((false), "   DoBlacklistFile(): MainFiles.RemoveBlacklistedETFFile(mainFileToBeBlacklisted) FAILED.", "Will throw exception if you click Continue.");
 #endif
-                    Debug.WriteLineIf(fDebugOutput, "   DoBlacklistFile(): After Failure, Main CurrentIndex / Count : " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
+                    Logging.LogLineIf(fDebugOutput, "   DoBlacklistFile(): After Failure, Main CurrentIndex / Count : " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
                     throw new InvalidOperationException("   DoBlacklistFile(): MainFiles.RemoveBlacklistedETFFile(mainFileToBeBlacklisted) FAILED.");
                 }
                 else
                 {
-                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): After removal of mainFileToBeBlacklisted, Main CurrentIndex / Count : " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
+                    Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): After removal of mainFileToBeBlacklisted, Main CurrentIndex / Count : " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
                 }
 
                 // If ETFFiles is now empty, exit Explore mode
                 if (ETFFiles.Count < 1)
                 {
-                    Logging.LogLine("   * DoBlacklistFile(): ETFFiles is now empty, so forcing exit of ETF Mode.");
+                    Logging.LogLineIf(fDebugOutput, "   * DoBlacklistFile(): ETFFiles is now empty, so forcing exit of ETF Mode.");
                     ExitExploreFolderMode(false, true);
                     return;
                 }
 
                 // Draw the file from the ETF list
-                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): About to call ETFFiles.GetCurrentFile()...");
+                Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): About to call ETFFiles.GetCurrentFile()...");
                 FileInfo etfToBeDrawn = ETFFiles.GetCurrentFile();
 #if DEBUG
                 if (etfToBeDrawn == null)
                 {
-                    Debug.WriteLineIf(fDebugOutput, "   *DoBlacklistFile(): etf.GetCurrentFile() returned NULL.  No image will be drawn.");
+                    Logging.LogLineIf(fDebugOutput, "   *DoBlacklistFile(): etf.GetCurrentFile() returned NULL.  No image will be drawn.");
                     System.Diagnostics.Debug.Assert((false), "   DoBlacklistFile():  etf.GetCurrentFile() returned NULL.  No image will be drawn.", "Will throw exception if you click Continue.");
                     throw new InvalidOperationException("   DoBlacklistFile():  etf.GetCurrentFile() returned NULL.  No image will be drawn.");
                 }
@@ -1165,7 +1222,7 @@ namespace ScotSoft.PattySaver
 #if DEBUG
                 if (mainToBeDrawn == null)
                 {
-                    Debug.WriteLineIf(fDebugOutput, "   * DoBlacklistFile(): MainFiles.GetFileByFullName(etfToBeDrawn.FullName) returned NULL. " +
+                    Logging.LogLineIf(fDebugOutput, "   * DoBlacklistFile(): MainFiles.GetFileByFullName(etfToBeDrawn.FullName) returned NULL. " +
                         "There is no file in the MainFiles list that matches the file we are drawing from the ETFFiles list.");
                     System.Diagnostics.Debug.Assert((false), "   DoBlacklistFile():  MainFiles.GetFileByFullName(etfToBeDrawn.FullName) returned NULL. " +
                         "There is no file in the MainFiles list that matches the file we are drawing from the ETFFiles list.", "Will throw exception if you click Continue.");
@@ -1173,11 +1230,11 @@ namespace ScotSoft.PattySaver
                 }
 #endif
 
-                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): ETFFiles.GetCurrentFile() result located at ETFIndex / MainIndex : " +
+                Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): ETFFiles.GetCurrentFile() result located at ETFIndex / MainIndex : " +
                     ETFFiles.IndexOf(etfToBeDrawn) + " / " + MainFiles.IndexOf(mainToBeDrawn));
 
                 // Even if files were null, we draw anyway. Drawing Code handles it.
-                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): About to call DrawImageFromFile(result)...");
+                Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): About to call DrawImageFromFile(result)...");
                 LoadFileIntoPictureBoxAsync(etfToBeDrawn);
 
 #if DEBUG
@@ -1186,7 +1243,7 @@ namespace ScotSoft.PattySaver
                 {
                     if (nextFile.FullName != etfToBeDrawn.FullName)
                     {
-                        Debug.WriteLineIf(fDebugOutput, "     DoBlacklistFile(): Weird, but safe - nextFile.FullName != result.FullName. How did that happen?");
+                        Logging.LogLineIf(fDebugOutput, "     DoBlacklistFile(): Weird, but safe - nextFile.FullName != result.FullName. How did that happen?");
                     }
                 }
 #endif
@@ -1194,15 +1251,15 @@ namespace ScotSoft.PattySaver
 
             else        // In Main Mode
             {
-                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): Main CurrentIndex / Count : " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
-                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): About to call Main.GetFileByFullName(pbMainPhoto.ImageLocation)...");
+                Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): Main CurrentIndex / Count : " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
+                Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): About to call Main.GetFileByFullName(pbMainPhoto.ImageLocation)...");
 
                 // get a FileInfo block from current file
                 FileInfo fileToBeBlacklisted = MainFiles.GetFileByFullName(pbMain.ImageLocation);
 
                 if (fileToBeBlacklisted == null)
                 {
-                    Debug.WriteLineIf(fDebugOutput, "   * DoBlacklistFile(): fileToBeBlacklisted == null.");
+                    Logging.LogLineIf(fDebugOutput, "   * DoBlacklistFile(): fileToBeBlacklisted == null.");
 #if DEBUG
                     System.Diagnostics.Debug.Assert((false), "   DoBlacklistFile(): fileToBeBlacklisted == null.", "Will throw exception if you click Continue.");
 #endif
@@ -1210,21 +1267,21 @@ namespace ScotSoft.PattySaver
                 }
                 else
                 {
-                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): fileToBeBlacklisted located at MainIndex : " + MainFiles.IndexOf(fileToBeBlacklisted));
+                    Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): fileToBeBlacklisted located at MainIndex : " + MainFiles.IndexOf(fileToBeBlacklisted));
                 }
 
                 // blacklist the file in the Main list
-                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): About to call Main.BlacklistCurrentFile()...");
+                Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): About to call Main.BlacklistCurrentFile()...");
                 FileInfo nextFile; // unused, but required for next method
 
                 if (MainFiles.BlacklistCurrentFile(out nextFile))
                 {
-                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): MainFiles.BlacklistCurrentFile() reports success.");
-                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): MainFiles CurrentIndex / Count : " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
+                    Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): MainFiles.BlacklistCurrentFile() reports success.");
+                    Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): MainFiles CurrentIndex / Count : " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
                 }
                 else
                 {
-                    Debug.WriteLineIf(fDebugOutput, "   * DoBlacklistFile(): MainFiles.BlacklistCurrentFile() reports FAILURE.");
+                    Logging.LogLineIf(fDebugOutput, "   * DoBlacklistFile(): MainFiles.BlacklistCurrentFile() reports FAILURE.");
 #if DEBUG
                     System.Diagnostics.Debug.Assert((false), "   DoBlacklistFile(): MainFiles.BlacklistCurrentFile() reports FAILURE.", "Will throw exception if you click Continue.");
                     throw new InvalidOperationException("   DoBlacklistFile(): MainFiles.BlacklistCurrentFile() reports FAILURE.");
@@ -1240,24 +1297,24 @@ namespace ScotSoft.PattySaver
                 // Just for the hell of it, let's validate nextFile, even though we will not use it
                 if (nextFile != null)
                 {
-                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): BlacklistCurrentFile() offers us as nextFile (which we will ignore): " + nextFile.FullName);
-                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): nextFile located at MainIndex : " + MainFiles.IndexOf(nextFile));
+                    Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): BlacklistCurrentFile() offers us as nextFile (which we will ignore): " + nextFile.FullName);
+                    Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): nextFile located at MainIndex : " + MainFiles.IndexOf(nextFile));
                 }
                 else
                 {
-                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): BlacklistCurrentFile() offers us as nextFile NULL. In theory this means that MainFiles is now empty. Is it?");
-                    Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): Main CurrentIndex / Count : " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
+                    Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): BlacklistCurrentFile() offers us as nextFile NULL. In theory this means that MainFiles is now empty. Is it?");
+                    Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): Main CurrentIndex / Count : " + MainFiles.CurrentIndex + " / " + MainFiles.Count);
                 }
 #endif
 
                 // And then draw the current Main file
-                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): About to call MainFiles.GetCurrentFile()...");
+                Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): About to call MainFiles.GetCurrentFile()...");
                 FileInfo toDraw = MainFiles.GetCurrentFile();
 
                 // Null is only unexpected if MainFiles is not empty
                 if (toDraw == null && MainFiles.Count != 0)
                 {
-                    Debug.WriteLineIf(fDebugOutput, "   * DoBlacklistFile(): MainFiles.GetCurrentFile() result == null.");
+                    Logging.LogLineIf(fDebugOutput, "   * DoBlacklistFile(): MainFiles.GetCurrentFile() result == null.");
 #if DEBUG
                     System.Diagnostics.Debug.Assert((false), "   DoBlacklistFile(): MainFiles.GetCurrentFile() result == null.", "Will throw exception if you click Continue.");
                     throw new InvalidOperationException("   DoBlacklistFile(): MainFiles.GetCurrentFile() result == null.");
@@ -1267,13 +1324,13 @@ namespace ScotSoft.PattySaver
                 {
                     if (toDraw != null)
                     {
-                        Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): MainFiles.GetCurrentFile() result located at MainIndex : " +
+                        Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): MainFiles.GetCurrentFile() result located at MainIndex : " +
                            MainFiles.IndexOf(toDraw));
                     }
                 }
 
                 // Even if files were null, we draw anyway. Drawing Code handles it.
-                Debug.WriteLineIf(fDebugTrace, "   DoBlacklistFile(): About to call GetImageFromFileAndLoadAsync(result)...");
+                Logging.LogLineIf(fDebugTrace, "   DoBlacklistFile(): About to call GetImageFromFileAndLoadAsync(result)...");
                 LoadFileIntoPictureBoxAsync(toDraw);
 
 #if DEBUG
@@ -1282,13 +1339,13 @@ namespace ScotSoft.PattySaver
                 {
                     if (nextFile.FullName != toDraw.FullName)
                     {
-                        Debug.WriteLineIf(fDebugOutput, "     DoBlacklistFile(): Weird, but safe - nextFile.FullName != result.FullName. How did that happen?");
+                        Logging.LogLineIf(fDebugOutput, "     DoBlacklistFile(): Weird, but safe - nextFile.FullName != result.FullName. How did that happen?");
                     }
                 }
 #endif
             }
 
-            Debug.WriteLineIf(fDebugTrace, "DoBlacklistFile(): Entering method.");
+            Logging.LogLineIf(fDebugTrace, "DoBlacklistFile(): Entering method.");
         }
 
 
@@ -1303,7 +1360,7 @@ namespace ScotSoft.PattySaver
             bool fDebugOutputTraceLevel = true;
             bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
 
-            Debug.WriteLineIf(fDebugTrace, "DoSettingsDialog(): Entered.");
+            Logging.LogLineIf(fDebugTrace, "DoSettingsDialog(): Entered.");
 
 
             // pause became redundant with our activation/deactivation code;
@@ -1356,7 +1413,7 @@ namespace ScotSoft.PattySaver
             //    EnterSlideshowMode();
             //}
 
-            Debug.WriteLineIf(fDebugTrace, "DoSettingsDialog(): Exiting.");
+            Logging.LogLineIf(fDebugTrace, "DoSettingsDialog(): Exiting.");
 
         }
 
@@ -1385,7 +1442,7 @@ namespace ScotSoft.PattySaver
             // Resume the slideshow if necessary
             if (fWasSlideshowMode)
             {
-                ourSlideshow.Enter();
+                ourSlideshow.Start();
             }
         }
 
@@ -1477,11 +1534,11 @@ namespace ScotSoft.PattySaver
         //        }
         //    }
 
-        //    //Logging.LogLine("Count of colors in list: " + colors.Count + ", and here they are:");
+        //    //Logging.LogLineIf("Count of colors in list: " + colors.Count + ", and here they are:");
 
         //    //for (int i = 0; i < colors.Count; i++)
         //    //{
-        //    //    Logging.LogLine(colors[i].ToString() + "  " + i);
+        //    //    Logging.LogLineIf(colors[i].ToString() + "  " + i);
         //    //}
         //    Hints.Clear();
         //    Hints.Add(TextRenderingHint.AntiAlias);
@@ -1496,18 +1553,18 @@ namespace ScotSoft.PattySaver
         //    {
         //        hintsIndex = 1;
         //    }
-        //    Logging.LogLine("Today we'll be using the hightest TextRenderingHint." + Hints[hintsIndex].ToString());
+        //    Logging.LogLineIf("Today we'll be using the hightest TextRenderingHint." + Hints[hintsIndex].ToString());
 
         //    //foreach (TextRenderingHint tr in (TextRenderingHint[])Enum.GetValues(typeof(TextRenderingHint)))
         //    //{
         //    //    Hints.Add(tr);
         //    //}
 
-        //    //Logging.LogLine("Count of Hints in list: " + Hints.Count + ", and here they are:");
+        //    //Logging.LogLineIf("Count of Hints in list: " + Hints.Count + ", and here they are:");
 
         //    //for (int i = 0; i < Hints.Count; i++)
         //    //{
-        //    //    Logging.LogLine(Hints[i].ToString() + "  " + i);
+        //    //    Logging.LogLineIf(Hints[i].ToString() + "  " + i);
         //    //}
 
         //    UseShadowing = true;
@@ -1523,7 +1580,7 @@ namespace ScotSoft.PattySaver
             bool fDebugOutputTraceLevel = false;
             bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
 
-            Debug.WriteLineIf(fDebugTrace, "PaintText(): entering.");
+            Logging.LogLineIf(fDebugTrace, "PaintText(): entered.");
 
             // Retrieve the graphics object.
             Graphics formGraphics = e.Graphics;
@@ -1581,7 +1638,7 @@ namespace ScotSoft.PattySaver
             // Dispose of any resources we created in this method
             shadowBrush.Dispose();
 
-            Debug.WriteLineIf(fDebugTrace, "PaintText(): exiting.");
+            Logging.LogLineIf(fDebugTrace, "PaintText(): exiting.");
 
         }
 
@@ -1684,7 +1741,6 @@ namespace ScotSoft.PattySaver
             SetFontDataFromConfigData();
             pbMain.Invalidate();
 
-            Logging.LogLine("Metadata now being drawn with default values, not loaded from saved.");
         }
 
         private void DoUpdateFontColor(int delta)
@@ -1749,22 +1805,26 @@ namespace ScotSoft.PattySaver
             //    {
             //        graphics.CopyFromScreen(pointy.X, pointy.Y, 0, 0, new Size(400, 90), CopyPixelOperation.SourceCopy);
             //        avg = CalculateAverageColor(bm);
-            //        Logging.LogLine("AverageColor was: " + avg.ToString());
+            //        Logging.LogLineIf("AverageColor was: " + avg.ToString());
             //    }
             //}
             //else
             //{
-            //    Logging.LogLine("ClientToScreen(): failed or was null.");
+            //    Logging.LogLineIf("ClientToScreen(): failed or was null.");
             //}
         }
 
         private Color GetContrastingFontColor(Color AverageColorOfBitmap, List<Color> FavoriteColors)
         {
+            bool fDebugOutput = true;
+            bool fDebugOutputTraceLevel = false;
+            bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
+
             // float brightness = AverageColorOfBitmap.GetBrightness();
             float CDiff = (float)500;
             float BDiff = (float).125;
 
-            Logging.LogLine("GetContrastingFontColor(): Starting. ");
+            Logging.LogLineIf(fDebugTrace, "GetContrastingFontColor(): Entered.");
 
             IEnumerable<Color> AcceptableColors = new List<Color>();
 
@@ -1786,21 +1846,21 @@ namespace ScotSoft.PattySaver
                     (WithinColorDifferenceRange(AverageColorOfBitmap, clr, CDiff)));
 
             temp = AcceptableColors.ToList();
-            Logging.LogLine("  Count of colors passing GetColorDifference: " + temp.Count);
+            Logging.LogLineIf(fDebugTrace, "  Count of colors passing GetColorDifference: " + temp.Count);
 
             AcceptableColors = temp.Where(clr => WithinBrightnessDifferenceRange(AverageColorOfBitmap, clr, BDiff));
 
             temp = AcceptableColors.ToList();
-            Logging.LogLine("  ...and then passing GetBrightness: " + temp.Count);
+            Logging.LogLineIf(fDebugTrace, "  ...and then passing GetBrightness: " + temp.Count);
 
             // TODO: figure out a good order that gives "best" result
             AcceptableColors = temp.OrderBy(c => GetColorDifference(AverageColorOfBitmap, c));
             temp = AcceptableColors.ToList();
 
-            Logging.LogLine("  List of AcceptableColors: ");
+            Logging.LogLineIf(fDebugTrace, "  List of AcceptableColors: ");
             foreach (Color c in temp)
             {
-                Logging.LogLine("          " + c.Name + ", CDiff = " + GetColorDifference(AverageColorOfBitmap, c) +
+                Logging.LogLineIf(fDebugTrace, "          " + c.Name + ", CDiff = " + GetColorDifference(AverageColorOfBitmap, c) +
                     ", BDiff = " + GetBrightnessDifference(AverageColorOfBitmap, c));
             }
 
@@ -1822,7 +1882,7 @@ namespace ScotSoft.PattySaver
         private float GetBrightnessDifference(Color avg, Color proposed)
         {
             float result = Math.Abs(proposed.GetBrightness() - avg.GetBrightness());
-            // Logging.LogLine("     Proposed color: " + proposed.Name + ", Brightness Difference: " + result.ToString());
+            // Logging.LogLineIf("     Proposed color: " + proposed.Name + ", Brightness Difference: " + result.ToString());
             return result;
         }
 
@@ -1836,7 +1896,7 @@ namespace ScotSoft.PattySaver
             float r6 = Convert.ToSingle(MinByte(Color.Blue, avg, proposed));
 
             float result = Math.Abs((r1 - r2) + (r3 - r4) + (r5 - r6));
-            // Logging.LogLine("     Proposed color: " + proposed.Name + ", Color Difference: " + result.ToString());
+            // Logging.LogLineIf("     Proposed color: " + proposed.Name + ", Color Difference: " + result.ToString());
 
             return result;
         }
@@ -1868,7 +1928,7 @@ namespace ScotSoft.PattySaver
             }
             catch (Exception ex)
             {
-                Logging.LogLine("Exception trying to delete file: " + target + ", Exception: " + ex.Message);
+                Logging.LogLineIf(true, "Exception trying to delete file: " + target + ", Exception: " + ex.Message);
 
                 MessageBox.Show("The file could not be deleted at this time:" + Environment.NewLine + Environment.NewLine +
                 "Filename:  " + target, ProductName + " -- Delete A File... For Real", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -1933,7 +1993,7 @@ namespace ScotSoft.PattySaver
             }
             else
             {
-                Logging.LogLine("CalculateAverageColor(): bad bitmap? Count was zero, returning black.");
+                Logging.LogLineIf(true, "CalculateAverageColor(): bad bitmap? Count was zero, returning black.");
             }
 
             bm.UnlockBits(srcData);
@@ -1996,7 +2056,7 @@ namespace ScotSoft.PattySaver
             }
             else
             {
-                Logging.LogLine("CalculateAverageColor(): bad bitmap? Count was zero, returning black.");
+                Logging.LogLineIf(true, "CalculateAverageColor(): bad bitmap? Count was zero, returning black.");
             }
 
             bm.UnlockBits(srcData);

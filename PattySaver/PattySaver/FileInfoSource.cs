@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Threading;
 using System.Drawing;
-using System.Diagnostics;
+using ScotSoft.PattySaver.DebugUtils;
 
 namespace ScotSoft.PattySaver
 {
@@ -18,6 +18,10 @@ namespace ScotSoft.PattySaver
         #region Fields
 
         // Fields that appear in both implementations
+        //
+        bool fDebugOutput = true;
+        bool fTraceLevelOutput = false;
+        bool fDebugTrace = false;  // do not modify this here, it is recalculated in each method
         //
         // IEqualityComparers that we'll use for finding files in _fileInfoList or in _blacklistedFileInfoList
         private IEqualityComparer<KeyValuePair<DateTime, string>> BlackListFilenameComparer = new BlacklistFullFilenameComparer();
@@ -53,7 +57,7 @@ namespace ScotSoft.PattySaver
         {
             if (Directories == null || Directories.Count < 1)
             {
-                System.Diagnostics.Debug.WriteLine("MainFileInfoSource.Constructor: " +
+                Logging.LogLineIf(fDebugOutput, "MainFileInfoSource.Constructor: " +
                     "One of these happened: Directories == null || Directories.Count < 1" +
                     Environment.NewLine + "Object will not be created.");
 #if DEBUG
@@ -225,7 +229,7 @@ namespace ScotSoft.PattySaver
                 {
                     if (Directories == null || Directories.Count < 1)
                     {
-                        System.Diagnostics.Debug.WriteLine("Rebuild: " +
+                        Logging.LogLineIf(fDebugOutput, "Rebuild: " +
                             "One of these happened: Directories == null || Directories.Count < 1" +
                             Environment.NewLine + "Rebuild will fail. Exception will be thrown.");
 #if DEBUG
@@ -285,7 +289,7 @@ namespace ScotSoft.PattySaver
                 // never let _currentIndex be less than zero
                 if (_currentIndex < 0)
                 {
-                    System.Diagnostics.Debug.WriteLine("decrementCurrentIndex(): adjusted _currentIndex  < 0.  Avoiding exceptions, setting _currentIndex to 0.");
+                    Logging.LogLineIf(fDebugTrace, "decrementCurrentIndex(): adjusted _currentIndex  < 0.  Avoiding exceptions, setting _currentIndex to 0.");
 #if DEBUG
                     System.Diagnostics.Debug.Assert((false), "decrementCurrentIndex(): adjusted _currentIndex  < 0", "Will set _currentIndex to 0 if you click Continue.");
 #endif
@@ -296,7 +300,7 @@ namespace ScotSoft.PattySaver
                 // never let _currentIndex be greater than _fileInfoList.Count - 1
                 if (_currentIndex > _fileInfoList.Count - 1)
                 {
-                    System.Diagnostics.Debug.WriteLine("decrementCurrentIndex(): adjusted _currentIndex  < _fileInfoList.MaxIndex.  Avoiding exceptions, setting _currentIndex to_fileInfoList.MaxIndex.");
+                    Logging.LogLineIf(fDebugTrace, "decrementCurrentIndex(): adjusted _currentIndex  < _fileInfoList.MaxIndex.  Avoiding exceptions, setting _currentIndex to_fileInfoList.MaxIndex.");
 #if DEBUG
                     System.Diagnostics.Debug.Assert((false), "decrementCurrentIndex(): adjusted _currentIndex  < 0", "Will set _currentIndex to _fileInfoList.MaxIndex if you click Continue.");
 #endif
@@ -344,7 +348,7 @@ namespace ScotSoft.PattySaver
                 // never let _currentIndex be less than zero
                 if (_currentIndex < 0)
                 {
-                    System.Diagnostics.Debug.WriteLine("incrementCurrentIndex(): adjusted _currentIndex  < 0.  Avoiding exceptions, setting _currentIndex to 0.");
+                    Logging.LogLineIf(fDebugOutput, "incrementCurrentIndex(): adjusted _currentIndex  < 0.  Avoiding exceptions, setting _currentIndex to 0.");
 #if DEBUG
                     System.Diagnostics.Debug.Assert((false), "incrementCurrentIndex(): adjusted _currentIndex  < 0", "Will set _currentIndex to 0 if you click Continue.");
 #endif
@@ -355,7 +359,7 @@ namespace ScotSoft.PattySaver
                 // never let _currentIndex be greater than _fileInfoList.Count - 1
                 if (_currentIndex > _fileInfoList.Count - 1)
                 {
-                    System.Diagnostics.Debug.WriteLine("incrementCurrentIndex(): adjusted _currentIndex  < _fileInfoList.MaxIndex.  Avoiding exceptions, setting _currentIndex to_fileInfoList.MaxIndex.");
+                    Logging.LogLineIf(fDebugOutput, "incrementCurrentIndex(): adjusted _currentIndex  < _fileInfoList.MaxIndex.  Avoiding exceptions, setting _currentIndex to_fileInfoList.MaxIndex.");
 #if DEBUG
                     System.Diagnostics.Debug.Assert((false), "incrementCurrentIndex(): adjusted _currentIndex  < 0", "Will set _currentIndex to _fileInfoList.MaxIndex if you click Continue.");
 #endif
@@ -383,7 +387,7 @@ namespace ScotSoft.PattySaver
 
                 if (Index < 0)                  // negative index
                 {
-                    System.Diagnostics.Debug.WriteLine("getFileAt(): called with Index < 0.  Avoiding exceptions, returning NULL FileINfo.");
+                    Logging.LogLineIf(fDebugTrace, "getFileAt(): called with Index < 0.  Avoiding exceptions, returning NULL FileINfo.");
 #if DEBUG
                     System.Diagnostics.Debug.Assert((false), "getFileAt(): called with Index < 0", "Will return NULL if you click Continue.");
 #endif
@@ -392,7 +396,7 @@ namespace ScotSoft.PattySaver
 
                 if (Index > _fileInfoList.Count - 1)
                 {
-                    System.Diagnostics.Debug.WriteLine("getFileAt(): called with (Index > _fileInfoList.Count - 1).  Avoiding exceptions, returning NULL FileINfo.");
+                    Logging.LogLineIf(fDebugTrace, "getFileAt(): called with (Index > _fileInfoList.Count - 1).  Avoiding exceptions, returning NULL FileINfo.");
 #if DEBUG
                     System.Diagnostics.Debug.Assert((false), "getFileAt(): called with (Index > _fileInfoList.Count - 1)", "Will return NULL if you click Continue.");
 #endif
@@ -425,7 +429,7 @@ namespace ScotSoft.PattySaver
                 }
                 else if (fis.Count > 1)     // found multiple files, which is really weird
                 {
-                    System.Diagnostics.Debug.WriteLine("getFileByFullName() found multiple files, something is seriously wrong. Filename: " + FullName);
+                    Logging.LogLineIf(fDebugOutput, "getFileByFullName() found multiple files, something is seriously wrong. Filename: " + FullName);
 #if DEBUG
                     System.Diagnostics.Debug.Assert((false),
                         "getFileByFullName() found multiple files, something is seriously wrong. Filename: " + FullName,
@@ -435,7 +439,7 @@ namespace ScotSoft.PattySaver
                 }
 
                 // we should not be able to get here, but compiler can't tell that, so we include a "return NULL" at end.
-                System.Diagnostics.Debug.WriteLine("getFileByFullName(): No way! Fell through all conditionals.");
+                Logging.LogLineIf(fDebugOutput, "getFileByFullName(): No way! Fell through all conditionals.");
 #if DEBUG
                 System.Diagnostics.Debug.Assert((false),
                     "getFileByFullName(): No way! Fell through all conditionals." +
@@ -456,7 +460,7 @@ namespace ScotSoft.PattySaver
             {
                 if (File == null)
                 {
-                    System.Diagnostics.Debug.WriteLine("indexOf(): was passed a NULL FileInfo, returning (-1).");
+                    Logging.LogLineIf(fDebugOutput, "indexOf(): was passed a NULL FileInfo, returning (-1).");
 #if DEBUG
                     System.Diagnostics.Debug.Assert((false),
                         "indexOf(): was passed a NULL FileInfo. This may not be unexpected. " +
@@ -482,7 +486,7 @@ namespace ScotSoft.PattySaver
                 {
                     if (File == null)
                     {
-                        System.Diagnostics.Debug.WriteLine("removeFile(): was passed a NULL FileInfo, returning False.");
+                        Logging.LogLineIf(fDebugOutput, "removeFile(): was passed a NULL FileInfo, returning False.");
 #if DEBUG
                         System.Diagnostics.Debug.Assert((false),
                             "removeFile(): was passed a NULL FileInfo" +
@@ -505,14 +509,14 @@ namespace ScotSoft.PattySaver
                     // Capture _currentIndex
                     int capturedCurrentIndex = _currentIndex;
 
-                    System.Diagnostics.Debug.WriteLine("removeBlacklistedETFFile(): Entering, Main _currentIndex is: " + _currentIndex);
+                    Logging.LogLineIf(fDebugTrace, "removeBlacklistedETFFile(): Entering, Main _currentIndex is: " + _currentIndex);
 
                     // -------  Handle Errors  --------- //
 
                     if (File == null)
                     {
 
-                        System.Diagnostics.Debug.WriteLine("removeBlacklistedETFFile(): called with (File == null).  Avoiding exceptions, returning False.");
+                        Logging.LogLineIf(fDebugOutput, "removeBlacklistedETFFile(): called with (File == null).  Avoiding exceptions, returning False.");
 #if DEBUG
                         System.Diagnostics.Debug.Assert((false), "removeBlacklistedETFFile(): called with (File == null)",
                             "Will return False if you click Continue.");
@@ -523,7 +527,7 @@ namespace ScotSoft.PattySaver
 
                     if (_blacklistedFullFilenames.Contains(File.FullName))
                     {
-                        System.Diagnostics.Debug.WriteLine("removeBlacklistedETFFile(): targeted file is already in _blacklistedFileInfoList.  Avoiding exceptions, returning False.");
+                        Logging.LogLineIf(fDebugOutput, "removeBlacklistedETFFile(): targeted file is already in _blacklistedFileInfoList.  Avoiding exceptions, returning False.");
 #if DEBUG
                         System.Diagnostics.Debug.Assert((false), "removeBlacklistedETFFile(): targeted file is already in _blacklistedFileInfoList",
                             "Will return False if you click Continue.");
@@ -533,7 +537,7 @@ namespace ScotSoft.PattySaver
 
                     if (!_fileInfoList.Contains(File))
                     {
-                        System.Diagnostics.Debug.WriteLine("removeBlacklistedETFFile(): targeted file not found in _fileInfoList.  Avoiding exceptions, returning False.");
+                        Logging.LogLineIf(fDebugOutput, "removeBlacklistedETFFile(): targeted file not found in _fileInfoList.  Avoiding exceptions, returning False.");
 #if DEBUG
                         System.Diagnostics.Debug.Assert((false), "removeBlacklistedETFFile(): targeted file not found in _fileInfoList",
                             "Will return False if you click Continue.");
@@ -544,7 +548,7 @@ namespace ScotSoft.PattySaver
                     // ------  Now we do work  ---------- //
 
                     int targetIndex = _fileInfoList.IndexOf(File);
-                    System.Diagnostics.Debug.WriteLine("removeBlacklistedETFFile(): File we are attempting to blacklist, " + File.Name + ", is at Main index: " + targetIndex);
+                    Logging.LogLineIf(fDebugTrace, "removeBlacklistedETFFile(): File we are attempting to blacklist, " + File.Name + ", is at Main index: " + targetIndex);
 
                     // LOGIC:
                     // Delete specified file from _fileInfolist. Add filename to blacklist. 
@@ -553,11 +557,11 @@ namespace ScotSoft.PattySaver
                     // Remove the file from the _infoFileList
                     if (removeFile(File))
                     {
-                        System.Diagnostics.Debug.WriteLine("removeBlacklistedETFFile(): After removing file, Main _currentIndex is at: " + _currentIndex);
+                        Logging.LogLineIf(fDebugTrace, "removeBlacklistedETFFile(): After removing file, Main _currentIndex is at: " + _currentIndex);
                     }
                     else
                     {
-                        System.Diagnostics.Debug.WriteLine("removeBlacklistedETFFile(): FAILED to REMOVE blacklisted file from _fileInfoList. Avoiding exceptions, returning False and Null.");
+                        Logging.LogLineIf(fDebugOutput, "removeBlacklistedETFFile(): FAILED to REMOVE blacklisted file from _fileInfoList. Avoiding exceptions, returning False and Null.");
 #if DEBUG
                         System.Diagnostics.Debug.Assert((false), "removeBlacklistedETFFile(): FAILED to REMOVE blacklisted file from _fileInfoList", "Will return False if you click Continue.");
 #endif
@@ -588,7 +592,7 @@ namespace ScotSoft.PattySaver
                 {
                     // Capture _currentIndex
                     int capturedIndex = _currentIndex;
-                    System.Diagnostics.Debug.WriteLine("blacklistCurrentFile(): Entering, _currentIndex is: " + _currentIndex);
+                    Logging.LogLineIf(fDebugTrace, "blacklistCurrentFile(): Entering, _currentIndex is: " + _currentIndex);
 
                     FileInfo targetFile = GetCurrentFile();
 
@@ -596,7 +600,7 @@ namespace ScotSoft.PattySaver
 
                     if (targetFile == null)
                     {
-                        System.Diagnostics.Debug.WriteLine("blacklistCurrentFile(): GetCurrentFile() returned null!!  Avoiding exceptions, returning False.");
+                        Logging.LogLineIf(fDebugOutput, "blacklistCurrentFile(): GetCurrentFile() returned null!!  Avoiding exceptions, returning False.");
 #if DEBUG
                         System.Diagnostics.Debug.Assert((false), "blacklistCurrentFile(): GetCurrentFile() returned null!!",
                             "Not unexpected if _fileInfoList was empty. Safe as long as caller handles it.  " +
@@ -609,7 +613,7 @@ namespace ScotSoft.PattySaver
 
                     if (_blacklistedFullFilenames.Contains(targetFile.FullName))
                     {
-                        System.Diagnostics.Debug.WriteLine("blacklistCurrentFile(): GetCurrentFile() is already in _blacklistedFileInfoList.  Avoiding exceptions, returning False.");
+                        Logging.LogLineIf(fDebugOutput, "blacklistCurrentFile(): GetCurrentFile() is already in _blacklistedFileInfoList.  Avoiding exceptions, returning False.");
 #if DEBUG
                         System.Diagnostics.Debug.Assert((false), "blacklistCurrentFile(): GetCurrentFile() is already in _blacklistedFileInfoList",
                             "Will return False if you click Continue.");
@@ -621,7 +625,7 @@ namespace ScotSoft.PattySaver
 
                     if (!_fileInfoList.Contains(targetFile))      // this handles the empty list case, also
                     {
-                        System.Diagnostics.Debug.WriteLine("blacklistCurrentFile(): GetCurrentFile() not found in _fileInfoList.  Avoiding exceptions, returning False.");
+                        Logging.LogLineIf(fDebugOutput, "blacklistCurrentFile(): GetCurrentFile() not found in _fileInfoList.  Avoiding exceptions, returning False.");
 #if DEBUG
                         System.Diagnostics.Debug.Assert((false), "blacklistCurrentFile(): GetCurrentFile() not found in _fileInfoList",
                             "Will return False if you click Continue.");
@@ -659,11 +663,11 @@ namespace ScotSoft.PattySaver
                     // Remove the file from the _infoFileList
                     if (removeFile(targetFile))
                     {
-                        System.Diagnostics.Debug.WriteLine("blacklistCurrentFile(): After removing GetCurrentFile(), index is at: " + _currentIndex);
+                        Logging.LogLineIf(fDebugTrace, "blacklistCurrentFile(): After removing GetCurrentFile(), index is at: " + _currentIndex);
                     }
                     else
                     {
-                        System.Diagnostics.Debug.WriteLine("blacklistCurrentFile(): FAILED to REMOVE GetCurrentFile() file from _fileInfoList. Avoiding exceptions, returning False and Null.");
+                        Logging.LogLineIf(fDebugOutput, "blacklistCurrentFile(): FAILED to REMOVE GetCurrentFile() file from _fileInfoList. Avoiding exceptions, returning False and Null.");
 #if DEBUG
                         System.Diagnostics.Debug.Assert((false), "blacklistCurrentFile(): FAILED to REMOVE GetCurrentFile() file from _fileInfoList", "Will return False and Null if you click Continue.");
 #endif
@@ -680,7 +684,7 @@ namespace ScotSoft.PattySaver
                         // I'm curious, would this have been zero anyway?
                         if (_currentIndex != 0)
                         {
-                            System.Diagnostics.Debug.WriteLine("blackListFile(): After removing only file in list, index is curiously not ZERO, it is: " + _currentIndex);
+                            Logging.LogLineIf(fDebugOutput, "blackListFile(): After removing only file in list, index is curiously not ZERO, it is: " + _currentIndex);
                         }
                         _currentIndex = 0;
                     }
@@ -689,7 +693,7 @@ namespace ScotSoft.PattySaver
                         // point _currentIndex to the file we just returned 
                         _currentIndex = indexOf(NextOrPreviousFile);
                     }
-                    System.Diagnostics.Debug.WriteLine("blackListFile(): After setting index to ZERO || indexOf(NextOrPreviousFile), index is at: " + _currentIndex);
+                    Logging.LogLineIf(fDebugTrace, "blackListFile(): After setting index to ZERO || indexOf(NextOrPreviousFile), index is at: " + _currentIndex);
                     return true;
                 }
             }
@@ -705,7 +709,7 @@ namespace ScotSoft.PattySaver
 
             // Called from either the constructor or from Rebuild().
             // If called from Rebuild, the original blacklist is preserved.
-            System.Diagnostics.Debug.WriteLine("initializeFileInfoList(): Beginning Filescan, building _fileInfoList.");
+            Logging.LogLineIf(fDebugOutput, "initializeFileInfoList(): Beginning Filescan, building _fileInfoList.");
 
             _directories = Directories;
 
@@ -758,7 +762,7 @@ namespace ScotSoft.PattySaver
                         // and GetDirectoryInfosWithoutThrowing are methods from our code.
                         // Shell.Folders are added to dictionary in GetDirectoryInfosWithoutThrowing.
                         _iEnumerableFileInfo = new[] { _directories[i] }.Traverse(dir => GetDirectoryInfosWithoutThrowing(dir)).SelectMany(dir => GetFileInfosWithoutThrowing(dir).IsImageFile());
-                        System.Diagnostics.Debug.WriteLine("     Recursion of " + _directories[i] + " and below:" + Environment.NewLine +
+                        Logging.LogLineIf(fDebugOutput, "     Recursion of " + _directories[i] + " and below:" + Environment.NewLine +
                             "     Directories skipped so far (Access Violations, errors): " + _dbgCountOfDirsSkippedDuringInit + Environment.NewLine +
                             "     Individual Files skipped: " + _dbgCountOfFilesSkippedDuringInit + Environment.NewLine +
                             "     Folder Entries in Shell Dictionary: " + ShellDict.Count);
@@ -766,8 +770,8 @@ namespace ScotSoft.PattySaver
                     catch (Exception ex)
                     {
                         _dbgCountOfDirsSkippedDuringInit++;
-                        System.Diagnostics.Debug.WriteLine(" !!! Exception thrown recursing from directory " + _directories[i] + ", no files will be displayed from that directory or below. Exception: " + ex.Message);
-                        System.Diagnostics.Debug.WriteLine("     Recursion of " + _directories[i] + " and below:" + Environment.NewLine +
+                        Logging.LogLineIf(fDebugOutput, " !!! Exception thrown recursing from directory " + _directories[i] + ", no files will be displayed from that directory or below. Exception: " + ex.Message);
+                        Logging.LogLineIf(fDebugOutput, "     Recursion of " + _directories[i] + " and below:" + Environment.NewLine +
                             "     Directories skipped so far (Access Violations, errors): " + _dbgCountOfDirsSkippedDuringInit + Environment.NewLine +
                             "     Individual Files skipped: " + _dbgCountOfFilesSkippedDuringInit + Environment.NewLine +
                             "     Folder Entries in Shell Dictionary: " + ShellDict.Count);
@@ -790,8 +794,8 @@ namespace ScotSoft.PattySaver
                     catch (Exception ex)
                     {
                         _dbgCountOfDirsSkippedDuringInit++;
-                        System.Diagnostics.Debug.WriteLine(" !!! Exception thrown calling GetFiles() from directory " + _directories[i] + ", no files will be displayed from that directory. Exception: " + ex.Message);
-                        System.Diagnostics.Debug.WriteLine("     Directories skipped so far (Access Violations, errors): " + _dbgCountOfDirsSkippedDuringInit + Environment.NewLine +
+                        Logging.LogLineIf(fDebugOutput, " !!! Exception thrown calling GetFiles() from directory " + _directories[i] + ", no files will be displayed from that directory. Exception: " + ex.Message);
+                        Logging.LogLineIf(fDebugOutput, "     Directories skipped so far (Access Violations, errors): " + _dbgCountOfDirsSkippedDuringInit + Environment.NewLine +
                             "     Individual Files skipped so far: " + _dbgCountOfFilesSkippedDuringInit + Environment.NewLine +
                             "     Entries in Shell Dictionary: " + ShellDict.Count);
                         continue;
@@ -815,8 +819,8 @@ namespace ScotSoft.PattySaver
                 {
                     // don't do anything except report some debug output
                     _dbgCountOfFilesSkippedDuringInit++;
-                    System.Diagnostics.Debug.WriteLine(" !!! Exception accessing a file in directory " + _directories[i].FullName + ", file will be skipped. Exception: " + ex.Message);
-                    System.Diagnostics.Debug.WriteLine("     Directories skipped so far (Access Violations, errors): " + _dbgCountOfDirsSkippedDuringInit + Environment.NewLine +
+                    Logging.LogLineIf(fDebugOutput, " !!! Exception accessing a file in directory " + _directories[i].FullName + ", file will be skipped. Exception: " + ex.Message);
+                    Logging.LogLineIf(fDebugOutput, "     Directories skipped so far (Access Violations, errors): " + _dbgCountOfDirsSkippedDuringInit + Environment.NewLine +
                         "     Individual Files skipped so far: " + _dbgCountOfFilesSkippedDuringInit + Environment.NewLine +
                         "     Entries in Shell Dictionary: " + ShellDict.Count);
                 }
@@ -824,11 +828,11 @@ namespace ScotSoft.PattySaver
                 // Debug output
                 if (UseRecursion)
                 {
-                    System.Diagnostics.Debug.WriteLine("     Top Level Directory[" + i + "]: " + _directories[i].Name + ", Image Files in or below target: " + _dbgFilesInDirCount + ", Total Image Files: " + _dbgTotal);
+                    Logging.LogLineIf(fDebugOutput, "     Top Level Directory[" + i + "]: " + _directories[i].Name + ", Image Files in or below target: " + _dbgFilesInDirCount + ", Total Image Files: " + _dbgTotal);
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine("     Directory[" + i + "]: " + _directories[i].Name + ", Image Files in target: " + _dbgFilesInDirCount + ", Total Image Files: " + _dbgTotal);
+                    Logging.LogLineIf(fDebugOutput, "     Directory[" + i + "]: " + _directories[i].Name + ", Image Files in target: " + _dbgFilesInDirCount + ", Total Image Files: " + _dbgTotal);
                 }
 
                 // Add the tempList to our List of Lists.
@@ -841,13 +845,13 @@ namespace ScotSoft.PattySaver
                 _fileInfoList = _fileInfoList.Union(li, FileInfoComparer).ToList();
             }
 
-            System.Diagnostics.Debug.WriteLine("     Count of _fileInfoList after Union of Top Level Directory FileInfos: " + _fileInfoList.Count);
+            Logging.LogLineIf(fDebugOutput, "     Count of _fileInfoList after Union of Top Level Directory FileInfos: " + _fileInfoList.Count);
 
             // Stop timer
             stpSequential.Stop();
 
-            System.Diagnostics.Debug.WriteLine("     Count of entries in ShellDict: " + ShellDict.Count);
-            System.Diagnostics.Debug.WriteLine("     Time taken to build _theFiles: " + stpSequential.ElapsedMilliseconds + " milliseconds.");
+            Logging.LogLineIf(fDebugOutput, "     Count of entries in ShellDict: " + ShellDict.Count);
+            Logging.LogLineIf(fDebugOutput, "     Time taken to build _theFiles: " + stpSequential.ElapsedMilliseconds + " milliseconds.");
 
             // this is where we remove the files that are in the blacklist
             stpSequential.Reset();
@@ -855,8 +859,8 @@ namespace ScotSoft.PattySaver
             _fileInfoList = _fileInfoList.Where(c => !_blacklistedFullFilenames.Contains(c.FullName)).ToList();
             stpSequential.Stop();
 
-            System.Diagnostics.Debug.WriteLine("     Count of _fileInfoList after removing blacklisted files: " + _fileInfoList.Count);
-            System.Diagnostics.Debug.WriteLine("     Time taken to remove blacklisted files: " + stpSequential.ElapsedMilliseconds.ToString() + " milliseconds.");
+            Logging.LogLineIf(fDebugOutput, "     Count of _fileInfoList after removing blacklisted files: " + _fileInfoList.Count);
+            Logging.LogLineIf(fDebugOutput, "     Time taken to remove blacklisted files: " + stpSequential.ElapsedMilliseconds.ToString() + " milliseconds.");
 
             if (UseShuffle)
             {
@@ -865,10 +869,10 @@ namespace ScotSoft.PattySaver
                 ShuffleAFileInfoList(_fileInfoList);
                 stpSequential.Stop();
 
-                System.Diagnostics.Debug.WriteLine("     Time taken to Shuffle _fileInfoList: " + stpSequential.ElapsedMilliseconds.ToString() + " milliseconds.");
+                Logging.LogLineIf(fDebugOutput, "     Time taken to Shuffle _fileInfoList: " + stpSequential.ElapsedMilliseconds.ToString() + " milliseconds.");
             }
 
-            System.Diagnostics.Debug.WriteLine("     Total Directories skipped (Access Violations, errors): " + _dbgCountOfDirsSkippedDuringInit + Environment.NewLine +
+            Logging.LogLineIf(fDebugOutput, "     Total Directories skipped (Access Violations, errors): " + _dbgCountOfDirsSkippedDuringInit + Environment.NewLine +
                                         "     Total Individual Files skipped: " + _dbgCountOfFilesSkippedDuringInit + Environment.NewLine +
                                         "     Total Entries in Shell Dictionary: " + ShellDict.Count);
 
@@ -903,7 +907,7 @@ namespace ScotSoft.PattySaver
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine("Exception thrown trying to add objFolder to ShellDict: " + ex.Message);
+                    Logging.LogLineIf(fDebugOutput, "Exception thrown trying to add objFolder to ShellDict: " + ex.Message);
                 }
 
                 return dir.GetDirectories();
@@ -911,8 +915,8 @@ namespace ScotSoft.PattySaver
             catch (Exception ex)
             {
                 _dbgCountOfDirsSkippedDuringInit++;
-                System.Diagnostics.Debug.WriteLine("Error trying to do GetDirectories(), this directory will be skipped: " + dir.FullName);
-                System.Diagnostics.Debug.WriteLine("Exception was: " + ex.Message);
+                Logging.LogLineIf(fDebugOutput, "Error trying to do GetDirectories(), this directory will be skipped: " + dir.FullName);
+                Logging.LogLineIf(fDebugOutput, "Exception was: " + ex.Message);
                 return Enumerable.Empty<DirectoryInfo>();
             }
         }
@@ -931,7 +935,7 @@ namespace ScotSoft.PattySaver
             catch (Exception)
             {
                 _dbgCountOfDirsSkippedDuringInit++;
-                // System.Diagnostics.Debug.WriteLine("Exception accessing files in directory " + dir.FullName + ", directory will be skipped. Exception: " + ex.Message);
+                // Logging.LogLineIf("Exception accessing files in directory " + dir.FullName + ", directory will be skipped. Exception: " + ex.Message);
                 return Enumerable.Empty<FileInfo>();
             }
         }
@@ -1005,6 +1009,10 @@ namespace ScotSoft.PattySaver
 
         // Fields that appear in both implementations
         //
+        bool fDebugOutput = true;
+        bool fTraceLevelOutput = false;
+        bool fDebugTrace = false;  // do not modify this here, it is recalculated in each method
+        //
         //// IEqualityComparers that we'll use for finding files in _fileInfoList or in _blacklistedFileInfoList
         //private IEqualityComparer<KeyValuePair<DateTime, string>> BlackListFilenameComparer = new BlacklistFullFilenameComparer();
         //private IEqualityComparer<FileInfo> FullFilenameComparer = new FileInfoFullNameComparer();
@@ -1031,7 +1039,7 @@ namespace ScotSoft.PattySaver
         {
             if (FromThisMFInfoSource == null || WithThisFile == null || WithThisFile.Exists == false)
             {
-                System.Diagnostics.Debug.WriteLine("ExploreThisFolderFileInfoSource.Constructor: " +
+                Logging.LogLineIf(fDebugOutput, "ExploreThisFolderFileInfoSource.Constructor: " +
                     "One of these happened: FromThisMFInfoSource == null || WithThisFile == null || WithThisFile.Exists == false" +
                     Environment.NewLine + "ETF Object will not be created.");
 #if DEBUG
@@ -1266,7 +1274,7 @@ namespace ScotSoft.PattySaver
                 // never let _currentIndex be less than zero
                 if (_currentIndex < 0)
                 {
-                    System.Diagnostics.Debug.WriteLine("decrementCurrentIndex(): adjusted _currentIndex  < 0.  Avoiding exceptions, setting _currentIndex to 0.");
+                    Logging.LogLineIf(fDebugOutput, "decrementCurrentIndex(): adjusted _currentIndex  < 0.  Avoiding exceptions, setting _currentIndex to 0.");
 #if DEBUG
                     System.Diagnostics.Debug.Assert((false), "decrementCurrentIndex(): adjusted _currentIndex  < 0", "Will set _currentIndex to 0 if you click Continue.");
 #endif
@@ -1277,7 +1285,7 @@ namespace ScotSoft.PattySaver
                 // never let _currentIndex be greater than _fileInfoList.Count - 1
                 if (_currentIndex > _fileInfoList.Count - 1)
                 {
-                    System.Diagnostics.Debug.WriteLine("decrementCurrentIndex(): adjusted _currentIndex  < _fileInfoList.MaxIndex.  Avoiding exceptions, setting _currentIndex to_fileInfoList.MaxIndex.");
+                    Logging.LogLineIf(fDebugOutput, "decrementCurrentIndex(): adjusted _currentIndex  < _fileInfoList.MaxIndex.  Avoiding exceptions, setting _currentIndex to_fileInfoList.MaxIndex.");
 #if DEBUG
                     System.Diagnostics.Debug.Assert((false), "decrementCurrentIndex(): adjusted _currentIndex  < 0", "Will set _currentIndex to _fileInfoList.MaxIndex if you click Continue.");
 #endif
@@ -1325,7 +1333,7 @@ namespace ScotSoft.PattySaver
                 // never let _currentIndex be less than zero
                 if (_currentIndex < 0)
                 {
-                    System.Diagnostics.Debug.WriteLine("incrementCurrentIndex(): adjusted _currentIndex  < 0.  Avoiding exceptions, setting _currentIndex to 0.");
+                    Logging.LogLineIf(fDebugOutput, "incrementCurrentIndex(): adjusted _currentIndex  < 0.  Avoiding exceptions, setting _currentIndex to 0.");
 #if DEBUG
                     System.Diagnostics.Debug.Assert((false), "incrementCurrentIndex(): adjusted _currentIndex  < 0", "Will set _currentIndex to 0 if you click Continue.");
 #endif
@@ -1336,7 +1344,7 @@ namespace ScotSoft.PattySaver
                 // never let _currentIndex be greater than _fileInfoList.Count - 1
                 if (_currentIndex > _fileInfoList.Count - 1)
                 {
-                    System.Diagnostics.Debug.WriteLine("incrementCurrentIndex(): adjusted _currentIndex  < _fileInfoList.MaxIndex.  Avoiding exceptions, setting _currentIndex to_fileInfoList.MaxIndex.");
+                    Logging.LogLineIf(fDebugOutput, "incrementCurrentIndex(): adjusted _currentIndex  < _fileInfoList.MaxIndex.  Avoiding exceptions, setting _currentIndex to_fileInfoList.MaxIndex.");
 #if DEBUG
                     System.Diagnostics.Debug.Assert((false), "incrementCurrentIndex(): adjusted _currentIndex  < 0", "Will set _currentIndex to _fileInfoList.MaxIndex if you click Continue.");
 #endif
@@ -1365,7 +1373,7 @@ namespace ScotSoft.PattySaver
                 if (Index < 0)                  // negative index
                 {
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine("getFileAt(): called with Index < 0.  Avoiding exceptions, returning NULL FileINfo.");
+                    Logging.LogLineIf(fDebugOutput, "getFileAt(): called with Index < 0.  Avoiding exceptions, returning NULL FileINfo.");
                     System.Diagnostics.Debug.Assert((false), "getFileAt(): called with Index < 0", "Will return NULL if you click Continue.");
                     return null;
 #else
@@ -1376,7 +1384,7 @@ namespace ScotSoft.PattySaver
                 if (Index > _fileInfoList.Count - 1)
                 {
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine("getFileAt(): called with (Index > _fileInfoList.Count - 1).  Avoiding exceptions, returning NULL FileINfo.");
+                    Logging.LogLineIf(fDebugOutput, "getFileAt(): called with (Index > _fileInfoList.Count - 1).  Avoiding exceptions, returning NULL FileINfo.");
                     System.Diagnostics.Debug.Assert((false), "getFileAt(): called with (Index > _fileInfoList.Count - 1)", "Will return NULL if you click Continue.");
                     return null;
 #else
@@ -1411,7 +1419,7 @@ namespace ScotSoft.PattySaver
                 else if (fis.Count > 1)     // found multiple files, which is really weird
                 {
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine("getFileByFullName() found multiple files, something is seriously wrong. Filename: " + FullName);
+                    Logging.LogLineIf(fDebugOutput, "getFileByFullName() found multiple files, something is seriously wrong. Filename: " + FullName);
                     System.Diagnostics.Debug.Assert((false),
                         "getFileByFullName() found multiple files, something is seriously wrong. Filename: " + FullName,
                         "Will return first file found if you click Continue.");
@@ -1423,7 +1431,7 @@ namespace ScotSoft.PattySaver
 
                 // we should not be able to get here, but compiler can't tell that, so we include a "return NULL" at end.
 #if DEBUG
-                System.Diagnostics.Debug.WriteLine("getFileByFullName(): No way! Fell through all conditionals.");
+                Logging.LogLineIf(fDebugOutput, "getFileByFullName(): No way! Fell through all conditionals.");
                 System.Diagnostics.Debug.Assert((false),
                     "getFileByFullName(): No way! Fell through all conditionals." +
                     "Will return NULL if you click Continue.");
@@ -1446,7 +1454,7 @@ namespace ScotSoft.PattySaver
                 if (File == null)
                 {
 #if DEBUG
-                    System.Diagnostics.Debug.WriteLine("indexOf(): was passed a NULL FileInfo, returning (-1).");
+                    Logging.LogLineIf(fDebugOutput, "indexOf(): was passed a NULL FileInfo, returning (-1).");
                     System.Diagnostics.Debug.Assert((false),
                         "indexOf(): was passed a NULL FileInfo" +
                         "Will return (-1) if you click Continue.");
@@ -1474,7 +1482,7 @@ namespace ScotSoft.PattySaver
                     if (File == null)
                     {
 #if DEBUG
-                        System.Diagnostics.Debug.WriteLine("removeFile(): was passed a NULL FileInfo, returning False.");
+                        Logging.LogLineIf(fDebugOutput, "removeFile(): was passed a NULL FileInfo, returning False.");
                         System.Diagnostics.Debug.Assert((false),
                             "removeFile(): was passed a NULL FileInfo" +
                             "Will return False if you click Continue.");
@@ -1516,7 +1524,7 @@ namespace ScotSoft.PattySaver
                 {
                     // Capture _currentIndex
                     int capturedIndex = _currentIndex;
-                    System.Diagnostics.Debug.WriteLine("blacklistCurrentFile(): Entering method, _currentIndex is: " + _currentIndex);
+                    Logging.LogLineIf(fDebugTrace, "blacklistCurrentFile(): Entering method, _currentIndex is: " + _currentIndex);
 
                     FileInfo targetFile = GetCurrentFile();
 
@@ -1524,7 +1532,7 @@ namespace ScotSoft.PattySaver
 
                     if (targetFile == null)
                     {
-                        System.Diagnostics.Debug.WriteLine("   * blacklistCurrentFile(): GetCurrentFile() returned null!!  Avoiding exceptions, returning False.");
+                        Logging.LogLineIf(fDebugOutput, "   * blacklistCurrentFile(): GetCurrentFile() returned null!!  Avoiding exceptions, returning False.");
 #if DEBUG
                         System.Diagnostics.Debug.Assert((false), "blacklistCurrentFile(): GetCurrentFile() returned null!!",
                             "Will return False and Null if you click Continue.");
@@ -1535,7 +1543,7 @@ namespace ScotSoft.PattySaver
 
                     if (_blacklistedFullFilenames.Contains(targetFile.FullName))
                     {
-                        System.Diagnostics.Debug.WriteLine("   * blacklistCurrentFile(): GetCurrentFile() is already in _blacklistedFileInfoList.  Avoiding exceptions, returning False.");
+                        Logging.LogLineIf(fDebugOutput, "   * blacklistCurrentFile(): GetCurrentFile() is already in _blacklistedFileInfoList.  Avoiding exceptions, returning False.");
 #if DEBUG
                         System.Diagnostics.Debug.Assert((false), "blacklistCurrentFile(): GetCurrentFile() is already in _blacklistedFileInfoList",
                             "Will return False and Null if you click Continue.");
@@ -1546,7 +1554,7 @@ namespace ScotSoft.PattySaver
 
                     if (!_fileInfoList.Contains(targetFile))      // this handles the empty list case, also
                     {
-                        System.Diagnostics.Debug.WriteLine("   * blacklistCurrentFile(): GetCurrentFile() not found in _fileInfoList.  Avoiding exceptions, returning False.");
+                        Logging.LogLineIf(fDebugOutput, "   * blacklistCurrentFile(): GetCurrentFile() not found in _fileInfoList.  Avoiding exceptions, returning False.");
 #if DEBUG
                         System.Diagnostics.Debug.Assert((false), "blacklistCurrentFile(): GetCurrentFile() not found in _fileInfoList",
                             "Will return False if you click Continue.");
@@ -1587,11 +1595,11 @@ namespace ScotSoft.PattySaver
                     // Remove the file from the _infoFileList
                     if (removeFile(targetFile))
                     {
-                        System.Diagnostics.Debug.WriteLine("   blacklistCurrentFile(): After removing GetCurrentFile(), index is at: " + _currentIndex);
+                        Logging.LogLineIf(fDebugTrace, "   blacklistCurrentFile(): After removing GetCurrentFile(), index is at: " + _currentIndex);
                     }
                     else
                     {
-                        System.Diagnostics.Debug.WriteLine("   * blacklistCurrentFile(): FAILED to REMOVE GetCurrentFile() file from _fileInfoList. Avoiding exceptions, returning False and Null.");
+                        Logging.LogLineIf(fDebugOutput, "   * blacklistCurrentFile(): FAILED to REMOVE GetCurrentFile() file from _fileInfoList. Avoiding exceptions, returning False and Null.");
 #if DEBUG
                         System.Diagnostics.Debug.Assert((false), "blacklistCurrentFile(): FAILED to REMOVE GetCurrentFile() file from _fileInfoList", "Will return False and Null if you click Continue.");
 #endif
@@ -1608,22 +1616,22 @@ namespace ScotSoft.PattySaver
                         // I'm curious, would this have been zero anyway?
                         if (_currentIndex != 0)
                         {
-                            System.Diagnostics.Debug.WriteLine("   ? blackListFile(): After removing only file in list, index is curiously not ZERO, it is: " + _currentIndex);
+                            Logging.LogLineIf(fDebugOutput, "   ? blackListFile(): After removing only file in list, index is curiously not ZERO, it is: " + _currentIndex);
                             _currentIndex = 0;
-                            System.Diagnostics.Debug.WriteLine("   blackListFile(): After removing only file in list, we just forced the index to ZERO.");
+                            Logging.LogLineIf(fDebugOutput, "   blackListFile(): After removing only file in list, we just forced the index to ZERO.");
                         }
                     }
                     else
                     {
                         // point _currentIndex to the file we just returned 
                         _currentIndex = indexOf(NextOrPreviousFile);
-                        System.Diagnostics.Debug.WriteLine("   blackListFile(): After setting index indexOf(NextOrPreviousFile), index is at: " + _currentIndex);
+                        Logging.LogLineIf(fDebugTrace, "   blackListFile(): After setting index indexOf(NextOrPreviousFile), index is at: " + _currentIndex);
                     }
 
                     // set the value of _initializingFileHasBeenBlacklisted
                     _initializingFileHasBeenBlacklisted = JustBlacklistedInitializingFile;
 
-                    System.Diagnostics.Debug.WriteLine("blackListFile(): Exiting method.");
+                    Logging.LogLineIf(fDebugTrace, "blackListFile(): Exiting method.");
                     return true;
                 }
             }
@@ -1655,17 +1663,17 @@ namespace ScotSoft.PattySaver
         /// </summary>
         private void initializeFileInfoList()
         {
-            Debug.WriteLine("ExploreThisFolder.initializeFileInfoList(): Entering method.");
+            Logging.LogLineIf(fDebugOutput, "ExploreThisFolder.initializeFileInfoList(): Entering method.");
             _fileInfoList.Clear();
 
             // this is where we would order by DateTaken, if we knew how to build an IComparer for it, handle blank values, etc.
             IEnumerable<FileInfo> iEnumerableFileInfo = _directoryInfo.GetFiles().IsImageFile().OrderBy(c => c.FullName);
-            Debug.WriteLine("   ExploreThisFolder.initializeFileInfoList(): Initial count of Graphics files in directory: " + iEnumerableFileInfo.ToList().Count());
+            Logging.LogLineIf(fDebugOutput, "   ExploreThisFolder.initializeFileInfoList(): Initial count of Graphics files in directory: " + iEnumerableFileInfo.ToList().Count());
 
             // this is where we remove the files that are in the blacklist. We compare them to our parent MFIS' blacklist, not our own.
             // Scot: read this as iEnumerableFileInfo = all the fileinfo in iEnumerableFileInfo that are not contained in the blacklist of our parent MFIS.
             iEnumerableFileInfo = iEnumerableFileInfo.Where(c => !(_initializingMainFileInfoSource.BlacklistedFullFilenames.Contains(c.FullName)));
-            Debug.WriteLine("   ExploreThisFolder.initializeFileInfoList(): Count of files after removing blacklisted files: " + iEnumerableFileInfo.ToList().Count());
+            Logging.LogLineIf(fDebugOutput, "   ExploreThisFolder.initializeFileInfoList(): Count of files after removing blacklisted files: " + iEnumerableFileInfo.ToList().Count());
 
             // this is where we force the enumeration of the whole list (by calling ToList), so that we have a nice static
             // list of Files, instead of an enumerator with deferred execution (a pointer to an item that promises to give
@@ -1688,19 +1696,19 @@ namespace ScotSoft.PattySaver
                 }
                 else if (fis.Count == 0)    // we didn't find file, 
                 {
-                    System.Diagnostics.Debug.WriteLine("   ExploreThisFolder.initializeFileInfoList(): WARNING: did not find initializing file in directory...");
+                    Logging.LogLineIf(fDebugOutput, "   ExploreThisFolder.initializeFileInfoList(): WARNING: did not find initializing file in directory...");
                     restoreIndex = 0;
                 }
                 else if (fis.Count > 1)
                 {
-                    System.Diagnostics.Debug.WriteLine("   ExploreThisFolder.initializeFileInfoList(): found multiple files matching _initalizingFileInfo.FullName, something is seriously wrong. Filename: " + _initalizingFileInfo.FullName);
+                    Logging.LogLineIf(fDebugOutput, "   ExploreThisFolder.initializeFileInfoList(): found multiple files matching _initalizingFileInfo.FullName, something is seriously wrong. Filename: " + _initalizingFileInfo.FullName);
                     fiFind = fis[0];
                     restoreIndex = _fileInfoList.IndexOf(fiFind);
                 }
             }
             else  // _initalizingFileInfo was null.  That shouldn't happen.
             {
-                System.Diagnostics.Debug.WriteLine("   ExploreThisFolder.initializeFileInfoList(): WARNING: _initializingFileInfo was NULL.");
+                Logging.LogLineIf(fDebugOutput, "   ExploreThisFolder.initializeFileInfoList(): WARNING: _initializingFileInfo was NULL.");
                 restoreIndex = 0;
             }
 
@@ -1710,11 +1718,11 @@ namespace ScotSoft.PattySaver
             // Tell me about top and bottom
             if (_fileInfoList != null && _fileInfoList.Count > 0)
             {
-                System.Diagnostics.Debug.WriteLine("   ExploreThisFolder.initializeFileInfoList(): First file is: " + _fileInfoList[0].Name + ", Last file is: " + _fileInfoList[_fileInfoList.Count - 1]);
+                Logging.LogLineIf(fDebugOutput, "   ExploreThisFolder.initializeFileInfoList(): First file is: " + _fileInfoList[0].Name + ", Last file is: " + _fileInfoList[_fileInfoList.Count - 1]);
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine("   ExploreThisFolder.initializeFileInfoList(): BEWARE - _fileInfoList is NULL or EMPTY.");
+                Logging.LogLineIf(fDebugOutput, "   ExploreThisFolder.initializeFileInfoList(): BEWARE - _fileInfoList is NULL or EMPTY.");
             }
         }
 
@@ -2082,7 +2090,7 @@ namespace System.Collections.Generic
 //                if (Index < 0)                  // negative index
 //                {
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine("getFileAt(): called with Index < 0.  Avoiding exceptions, returning NULL FileINfo.");
+//                    Logging.LogLineIf("getFileAt(): called with Index < 0.  Avoiding exceptions, returning NULL FileINfo.");
 //                    System.Diagnostics.Debug.Assert((false), "getFileAt(): called with Index < 0", "Will return NULL if you click Continue.");
 //                    return null;
 //#else
@@ -2093,7 +2101,7 @@ namespace System.Collections.Generic
 //                if (Index > _fileInfoList.Count - 1)
 //                {
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine("getFileAt(): called with (Index > _fileInfoList.Count - 1).  Avoiding exceptions, returning NULL FileINfo.");
+//                    Logging.LogLineIf("getFileAt(): called with (Index > _fileInfoList.Count - 1).  Avoiding exceptions, returning NULL FileINfo.");
 //                    System.Diagnostics.Debug.Assert((false), "getFileAt(): called with (Index > _fileInfoList.Count - 1)", "Will return NULL if you click Continue.");
 //                    return null;
 //#else
@@ -2128,7 +2136,7 @@ namespace System.Collections.Generic
 //                else if (fis.Count > 1)     // found multiple files, which is really weird
 //                {
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine("getFileByFullName() found multiple files, something is seriously wrong. Filename: " + FullName);
+//                    Logging.LogLineIf("getFileByFullName() found multiple files, something is seriously wrong. Filename: " + FullName);
 //                    System.Diagnostics.Debug.Assert((false), 
 //                        "getFileByFullName() found multiple files, something is seriously wrong. Filename: " + FullName,
 //                        "Will return first file found if you click Continue.");
@@ -2140,7 +2148,7 @@ namespace System.Collections.Generic
 
 //                // we should not be able to get here, but compiler can't tell that, so we include a "return NULL" at end.
 //#if DEBUG
-//                System.Diagnostics.Debug.WriteLine("getFileByFullName(): No way! Fell through all conditionals.");
+//                Logging.LogLineIf("getFileByFullName(): No way! Fell through all conditionals.");
 //                System.Diagnostics.Debug.Assert((false),
 //                    "getFileByFullName(): No way! Fell through all conditionals." +
 //                    "Will return NULL if you click Continue.");
@@ -2163,7 +2171,7 @@ namespace System.Collections.Generic
 //                if (File == null)
 //                {
 //#if DEBUG
-//                    System.Diagnostics.Debug.WriteLine("indexOf(): was passed a NULL FileInfo, returning (-1).");
+//                    Logging.LogLineIf("indexOf(): was passed a NULL FileInfo, returning (-1).");
 //                    System.Diagnostics.Debug.Assert((false),
 //                        "indexOf(): was passed a NULL FileInfo" +
 //                        "Will return (-1) if you click Continue.");
@@ -2186,7 +2194,7 @@ namespace System.Collections.Generic
 //                    if (File == null)
 //                    {
 //#if DEBUG
-//                        System.Diagnostics.Debug.WriteLine("removeFile(): was passed a NULL FileInfo, returning False.");
+//                        Logging.LogLineIf("removeFile(): was passed a NULL FileInfo, returning False.");
 //                        System.Diagnostics.Debug.Assert((false),
 //                            "removeFile(): was passed a NULL FileInfo" +
 //                            "Will return False if you click Continue.");

@@ -89,6 +89,7 @@ namespace ScotSoft.PattySaver.LaunchManager
             // In the case that the unofficial args contain "/window", we ignore all other data and force fullscreen.
             // That is handled outside of this method.
 
+
             Logging.LogLineIf(fDebugTrace, "GetLaunchModalityFromCmdLineArgs(): Entered.");
 
             hwndTargetWindow = (long)(-1);
@@ -164,7 +165,7 @@ namespace ScotSoft.PattySaver.LaunchManager
 
             // how do we get here without having returned?
             argsConsumed = 0;
-            Logging.LogLine("GetLaunchModalityFromCmdLineArgs(): Falling through to Configure, HOW THE HELL DID WE GET HERE??");
+            Logging.LogLineIf(fDebugOutput, "GetLaunchModalityFromCmdLineArgs(): Falling through to Configure, HOW THE HELL DID WE GET HERE??");
             Logging.LogLineIf(fDebugTrace, "GetLaunchModalityFromCmdLineArgs(): exiting.");
             return LaunchModality.Configure;
         }

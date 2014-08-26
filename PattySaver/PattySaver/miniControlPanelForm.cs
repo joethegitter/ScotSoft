@@ -62,7 +62,7 @@ namespace ScotSoft.PattySaver
         /// that window from the Control Panel. So we close the app each time that occurs.</remarks>
         protected override void WndProc(ref Message m)
         {
-            Logging.LogLine(m.Msg.ToString() + ": " + m.ToString());
+            Logging.LogLineIf(fDebugTrace , m.Msg.ToString() + ": " + m.ToString());
 
             if (m.Msg == (int)0x0002)   // WM_DESTROY
             {
@@ -94,26 +94,26 @@ namespace ScotSoft.PattySaver
             // get the current window style, but with WS_CHILD set
             IntPtr ip = new IntPtr();
             int index = (int)NativeMethods.WindowLongFlags.GWL_STYLE | 0x40000000;   
-            Logging.LogLine("About to call GetWindowLongPtr:");
+            Logging.LogLineIf(fDebugTrace, "About to call GetWindowLongPtr:");
             ip = NativeMethods.GetWindowLongPtr(this.Handle, index);
             int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-            Logging.LogLine("GetWindowLongPtr returned IntPtr: " + ip.ToString() + ", GetLastError() returned: " + error.ToString());
+            Logging.LogLineIf(fDebugTrace, "GetWindowLongPtr returned IntPtr: " + ip.ToString() + ", GetLastError() returned: " + error.ToString());
 
             // set that value as our current Style
             object ohRef = new object();
             HandleRef hRef = new HandleRef(ohRef, this.Handle);
             IntPtr ip2 = new IntPtr();
-            Logging.LogLine("About to call SetWindowLongPtr:");
+            Logging.LogLineIf(fDebugTrace, "About to call SetWindowLongPtr:");
             int index2 = (int)NativeMethods.WindowLongFlags.GWL_STYLE;
             ip2 = NativeMethods.SetWindowLongPtr(hRef, index2, ip);
             error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-            Logging.LogLine("SetWindowLongPtr returned IntPtr: " + ip2.ToString() + ", GetLastError() returned: " + error.ToString());
+            Logging.LogLineIf(fDebugTrace, "SetWindowLongPtr returned IntPtr: " + ip2.ToString() + ", GetLastError() returned: " + error.ToString());
 
             //set the passed preview window as the parent of this window
-            Logging.LogLine("Calling SetParent to set new Parent for our form:");
+            Logging.LogLineIf(fDebugTrace, "Calling SetParent to set new Parent for our form:");
             IntPtr newOldParent = NativeMethods.SetParent(this.Handle, iphWnd);
             error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-            Logging.LogLine("SetParent() returned newParent = " + newOldParent.ToString() + ", GetLastError() returned: " + error.ToString());
+            Logging.LogLineIf(fDebugTrace, "SetParent() returned newParent = " + newOldParent.ToString() + ", GetLastError() returned: " + error.ToString());
 
             //set our window's size to the size of our window's new parent
             Rectangle ParentRect = new Rectangle();
@@ -132,31 +132,31 @@ namespace ScotSoft.PattySaver
 
             //int error = 0;
 
-            ////Logging.LogLine("Calling GetParent to see if our parent still exists:");
+            ////Logging.LogLineIf("Calling GetParent to see if our parent still exists:");
             ////IntPtr newOldParent = NativeMethods.GetParent(this.Handle);
             ////error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-            ////Logging.LogLine("GetParent() returned newParent = " + newOldParent.ToString() + ", GetLastError() returned: " + error.ToString());
+            ////Logging.LogLineIf("GetParent() returned newParent = " + newOldParent.ToString() + ", GetLastError() returned: " + error.ToString());
 
             ////NativeMethods.SetLastErrorEx(0, 0);
 
-            ////Logging.LogLine("Calling IsVisible to see if our parent still exists:");
+            ////Logging.LogLineIf("Calling IsVisible to see if our parent still exists:");
             ////bool IsVis = NativeMethods.IsWindowVisible(this.Handle);
             ////error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-            ////Logging.LogLine("IsWindowVisible() returned newParent = " + IsVis + ", GetLastError() returned: " + error.ToString());
+            ////Logging.LogLineIf("IsWindowVisible() returned newParent = " + IsVis + ", GetLastError() returned: " + error.ToString());
 
             ////NativeMethods.SetLastErrorEx(0, 0);
 
-            //Logging.LogLine("Calling GetWindow to see if our parent still exists:");
+            //Logging.LogLineIf("Calling GetWindow to see if our parent still exists:");
             //IntPtr child = NativeMethods.GetWindow(iphWnd, NativeMethods.GetWindow_Cmd.GW_CHILD);
             //error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-            //Logging.LogLine("GetWindow() returned newParent = " + child.ToString() + ", GetLastError() returned: " + error.ToString());
+            //Logging.LogLineIf("GetWindow() returned newParent = " + child.ToString() + ", GetLastError() returned: " + error.ToString());
 
             //if (tockCount > 2)
             //{
 
             //    CancelEventArgs cea = new CancelEventArgs();
             //    Application.Exit(cea);
-            //    Logging.LogLine("Application.Exit() returned cancel = " + cea.Cancel);
+            //    Logging.LogLineIf("Application.Exit() returned cancel = " + cea.Cancel);
             //}
 
         }

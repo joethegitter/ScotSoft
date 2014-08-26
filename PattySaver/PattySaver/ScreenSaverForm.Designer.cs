@@ -87,8 +87,8 @@
             this.pbMain.TabStop = false;
             this.pbMain.WaitOnLoad = true;
             this.pbMain.LoadCompleted += new System.ComponentModel.AsyncCompletedEventHandler(this.pbMain_LoadCompleted);
-            this.pbMain.Click += new System.EventHandler(this.pbMainPhoto_Click);
-            this.pbMain.Paint += new System.Windows.Forms.PaintEventHandler(this.pbMainPhoto_Paint);
+            this.pbMain.Click += new System.EventHandler(this.pbMain_Click);
+            this.pbMain.Paint += new System.Windows.Forms.PaintEventHandler(this.pbMain_Paint);
             // 
             // contextMenuMain
             // 
@@ -414,16 +414,16 @@
             this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
             this.Text = "-- Title Not Set From Code --";
             this.TopMost = true;
-            this.Activated += new System.EventHandler(this.FullScreenForm_Activated);
-            this.Deactivate += new System.EventHandler(this.FullScreenForm_Deactivate);
-            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.FullScreenForm_FormClosing);
-            this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.FullScreenForm_FormClosed);
-            this.Load += new System.EventHandler(this.FullScreenForm_Load);
-            this.SizeChanged += new System.EventHandler(this.FullScreenForm_SizeChanged);
-            this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.FullScreenForm_KeyDown);
-            this.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.FullScreenForm_KeyPress);
-            this.KeyUp += new System.Windows.Forms.KeyEventHandler(this.FullScreenForm_KeyUp);
-            this.PreviewKeyDown += new System.Windows.Forms.PreviewKeyDownEventHandler(this.FullScreenForm_PreviewKeyDown);
+            this.Activated += new System.EventHandler(this.ScreenSaverForm_Activated);
+            this.Deactivate += new System.EventHandler(this.ScreenSaverForm_Deactivate);
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.ScreenSaverForm_FormClosing);
+            this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.ScreenSaverForm_FormClosed);
+            this.Load += new System.EventHandler(this.ScreenSaverForm_Load);
+            this.SizeChanged += new System.EventHandler(this.ScreenSaverForm_SizeChanged);
+            this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.ScreenSaverForm_KeyDown);
+            this.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.ScreenSaverForm_KeyPress);
+            this.KeyUp += new System.Windows.Forms.KeyEventHandler(this.ScreenSaverForm_KeyUp);
+            this.PreviewKeyDown += new System.Windows.Forms.PreviewKeyDownEventHandler(this.ScreenSaverForm_PreviewKeyDown);
             ((System.ComponentModel.ISupportInitialize)(this.pbMain)).EndInit();
             this.contextMenuMain.ResumeLayout(false);
             this.ResumeLayout(false);

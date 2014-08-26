@@ -66,7 +66,7 @@ namespace ScotSoft.PattySaver
             if (fWasInSlideshowModeWhenMenuOpened)
             {
                 fWasInSlideshowModeWhenMenuOpened = false;
-                ourSlideshow.Enter();
+                ourSlideshow.Start();
             }
         }
 
@@ -170,13 +170,13 @@ namespace ScotSoft.PattySaver
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FullScreenForm_PreviewKeyDown(object sender, PreviewKeyDownEventArgs e)
+        private void ScreenSaverForm_PreviewKeyDown(object sender, PreviewKeyDownEventArgs e)
         {
             fInputDebugTrace = fInputDebugOutput && fInputDebugOutputAtTraceLevel;
-            Debug.WriteLineIf(fInputDebugTrace, "FullScreenForm_PreviewKeyDown(): entering.");
+            Logging.LogLineIf(fInputDebugTrace, "ScreenSaverForm_PreviewKeyDown(): entered.");
 
             // To test which keys cause which events, un-comment the next line
-            //Debug.WriteLineIf(fInputDebugTrace, "   PreviewKeyDown(): KeyCode = " + e.KeyCode + ", KeyValue = " + e.KeyValue + 
+            //Logging.LogLineIf(fInputDebugTrace, "   PreviewKeyDown(): KeyCode = " + e.KeyCode + ", KeyValue = " + e.KeyValue + 
             //    ", KeyData = " + e.KeyData + ", Modifiers = " + e.Modifiers.ToString() + ", e.IsInputKey = " + e.IsInputKey);
 
             e.IsInputKey = true;
@@ -184,7 +184,7 @@ namespace ScotSoft.PattySaver
             // We currently do not monitor this event, as we will only need it if we add any controls to the form
             // which can take user keystroke input.  If that happens, we will need to move the arrow keys into this section.
 
-            Debug.WriteLineIf(fInputDebugTrace, "FullScreenForm_PreviewKeyDown(): exiting.");
+            Logging.LogLineIf(fInputDebugTrace, "ScreenSaverForm_PreviewKeyDown(): exiting.");
 
         }
 
@@ -193,13 +193,13 @@ namespace ScotSoft.PattySaver
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FullScreenForm_KeyDown(object sender, KeyEventArgs e)
+        private void ScreenSaverForm_KeyDown(object sender, KeyEventArgs e)
         {
             fInputDebugTrace = fInputDebugOutput && fInputDebugOutputAtTraceLevel;
-            Debug.WriteLineIf(fInputDebugTrace, "FullScreenForm_KeyDown(): entering.");
+            Logging.LogLineIf(fInputDebugTrace, "ScreenSaverForm_KeyDown(): entered.");
 
             // To test which keys cause which events, un-comment the next line
-            //Debug.WriteLineIf(fInputDebugTrace, "   KeyDown(): KeyCode = " + e.KeyCode + ", KeyValue = " + e.KeyValue +
+            //Logging.LogLineIf(fInputDebugTrace, "   KeyDown(): KeyCode = " + e.KeyCode + ", KeyValue = " + e.KeyValue +
             //    ", KeyData = " + e.KeyData + ", Modifiers = " + e.Modifiers.ToString() + ", Handled = " + e.Handled);
 
             switch (e.KeyCode)
@@ -361,7 +361,7 @@ namespace ScotSoft.PattySaver
                 default:
                     break;
             }
-            Debug.WriteLineIf(fInputDebugTrace, "FullScreenForm_KeyDown(): exiting.");
+            Logging.LogLineIf(fInputDebugTrace, "ScreenSaverForm_KeyDown(): exiting.");
 
         }
 
@@ -370,14 +370,14 @@ namespace ScotSoft.PattySaver
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FullScreenForm_KeyUp(object sender, KeyEventArgs e)
+        private void ScreenSaverForm_KeyUp(object sender, KeyEventArgs e)
         {
 
             fInputDebugTrace = fInputDebugOutput && fInputDebugOutputAtTraceLevel;
-            Debug.WriteLineIf(fInputDebugTrace, "FullScreenForm_KeyUp(): entering.");
+            Logging.LogLineIf(fInputDebugTrace, "ScreenSaverForm_KeyUp(): entered.");
 
             //// To test which keys cause which events, un-comment the next line
-            //Debug.WriteLineIf(fInputDebugTrace, "   KeyUp(): KeyCode = " + e.KeyCode + ", KeyValue = " + e.KeyValue +
+            //Logging.LogLineIf(fInputDebugTrace, "   KeyUp(): KeyCode = " + e.KeyCode + ", KeyValue = " + e.KeyValue +
             //    ", KeyData = " + e.KeyData + ", Modifiers = " + e.Modifiers.ToString() + ", Handled = " + e.Handled + ", SupressKeyPress = "  + e.SuppressKeyPress);
 
 
@@ -400,10 +400,10 @@ namespace ScotSoft.PattySaver
         /// <summary>
         /// Code that runs with every Key Press (different than KeyDown or KeyUp).
         /// </summary>
-        private void FullScreenForm_KeyPress(object sender, KeyPressEventArgs e)
+        private void ScreenSaverForm_KeyPress(object sender, KeyPressEventArgs e)
         {
 
-            // Logging.LogLine("Form_KeyPress(): Key = " + e.KeyChar);
+            // Logging.LogLineIf("Form_KeyPress(): Key = " + e.KeyChar);
         }
 
         #endregion Keyboard Event Handlers
@@ -416,7 +416,7 @@ namespace ScotSoft.PattySaver
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e">e.Delta occurs for each detent.</param>
-        void FullScreenForm_MouseWheel(object sender, MouseEventArgs e)
+        void ScreenSaverForm_MouseWheel(object sender, MouseEventArgs e)
         {
             if (fCtrlDown)
             {
@@ -436,7 +436,7 @@ namespace ScotSoft.PattySaver
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void pbMainPhoto_Click(object sender, EventArgs e)
+        private void pbMain_Click(object sender, EventArgs e)
         {
             if (fCtrlDown)
             {

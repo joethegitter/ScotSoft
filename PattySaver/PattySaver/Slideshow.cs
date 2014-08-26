@@ -5,6 +5,7 @@ using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using ScotSoft.PattySaver.DebugUtils;
 
 using System.Diagnostics;
 
@@ -81,7 +82,7 @@ namespace ScotSoft.PattySaver
                     bool wasRunning = IsRunning;
                     if (wasRunning) Exit();
                     _interval = Math.Abs(value);
-                    if (wasRunning) Enter();
+                    if (wasRunning) Start();
                 }
             }
 
@@ -100,7 +101,7 @@ namespace ScotSoft.PattySaver
                     bool wasRunning = IsRunning;
                     if (wasRunning) Exit();
                     _deferralInterval = Math.Abs(value);
-                    if (wasRunning) Enter();
+                    if (wasRunning) Start();
                 }
             }
 
@@ -119,7 +120,7 @@ namespace ScotSoft.PattySaver
                     bool wasRunning = IsRunning;
                     if (wasRunning) Exit();
                     _deferralTimeWindow = Math.Abs(value);
-                    if (wasRunning) Enter();
+                    if (wasRunning) Start();
                 }
             }
 
@@ -145,11 +146,11 @@ namespace ScotSoft.PattySaver
             /// <summary>
             /// Starts the Slideshow.
             /// </summary>
-            public void Enter()
+            public void Start()
             {
                 bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
 
-                Debug.WriteLineIf(fDebugTrace, "Slideshow.Enter(): entering.");
+                Logging.LogLineIf(fDebugTrace, "Slideshow.Start(): entered.");
 
                 lock (lockSlideshowTimer)
                 {
@@ -159,7 +160,7 @@ namespace ScotSoft.PattySaver
                     _slideshowTimer.Interval = _interval;                                        // set interval from settings
                     _slideshowTimer.Start();
                 }
-                Debug.WriteLineIf(fDebugTrace, "Slideshow.Enter(): exiting.");
+                Logging.LogLineIf(fDebugTrace, "Slideshow.Start(): exiting.");
             }
 
             /// <summary>
@@ -170,18 +171,18 @@ namespace ScotSoft.PattySaver
             {
                 bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
 
-                Debug.WriteLineIf(fDebugTrace, "Slideshow.Defer(): entering (outside locks).");
+                Logging.LogLineIf(fDebugTrace, "Slideshow.Defer(): entered (outside locks).");
 
                 lock (lockSlideshowTimer)
                 {
                     lock (lockSlideshowDeferralTimer)
                     {
-                        //Debug.WriteLineIf(fDbgOutput, "   Slideshow.Defer(): inside locks.");
+                        Logging.LogLineIf(fDebugTrace, "   Slideshow.Defer(): inside locks.");
 
                         if (!_fSlideshowIsRunning)
                         {
-                            Debug.WriteLineIf(fDebugOutput, "   Slideshow.Defer(): called when !_fSlideshowIsRunning. Doing nothing.");
-                            Debug.WriteLineIf(fDebugTrace, "Slideshow.Defer(): exiting.");
+                            Logging.LogLineIf(fDebugOutput, "   Slideshow.Defer(): called when !_fSlideshowIsRunning. Doing nothing.");
+                            Logging.LogLineIf(fDebugTrace, "Slideshow.Defer(): exiting.");
                             return true;
                         }
                         else
@@ -193,32 +194,32 @@ namespace ScotSoft.PattySaver
                                 TimeSpan delta = now - _lastTimeDeferWasCalled;
                                 if (delta < SlideShowDeferralBreakWindow)
                                 {
-                                    Debug.WriteLineIf(fDebugOutput, "   Slideshow.Defer(): not extending defer, timespan was too small: " + delta);
-                                    Debug.WriteLineIf(fDebugTrace, "Slideshow.Defer(): exiting.");
+                                    Logging.LogLineIf(fDebugOutput, "   Slideshow.Defer(): not extending defer, timespan was too small: " + delta);
+                                    Logging.LogLineIf(fDebugTrace, "Slideshow.Defer(): exiting.");
                                     return false;
                                 }
                                 else
                                 {
                                     ExtendDeferral();
-                                    Debug.WriteLineIf(fDebugOutput, "   Slideshow.Defer(): extending deferral.");
-                                    Debug.WriteLineIf(fDebugTrace, "   Slideshow.Defer(): updating _lastTimeDeferWasCalled.");
+                                    Logging.LogLineIf(fDebugOutput, "   Slideshow.Defer(): extending deferral.");
+                                    Logging.LogLineIf(fDebugTrace, "   Slideshow.Defer(): updating _lastTimeDeferWasCalled.");
                                     _lastTimeDeferWasCalled = now;
-                                    Debug.WriteLineIf(fDebugTrace, "Slideshow.Defer(): exiting.");
+                                    Logging.LogLineIf(fDebugTrace, "Slideshow.Defer(): exiting.");
                                     return true;
                                 }
                             }
 
                             // note: do NOT set _fSlideShowIsRunning to false here. It's still running, it's just deferred.
-                            Debug.WriteLineIf(fDebugTrace, "   Slideshow.Defer(): starting deferral.");
+                            Logging.LogLineIf(fDebugTrace, "   Slideshow.Defer(): starting deferral.");
                             _slideshowTimer.Stop();
                             _slideshowDeferralTimer = new Timer();
                             _slideshowDeferralTimer.Tick += new EventHandler(SlideshowDeferralTick);
                             _slideshowDeferralTimer.Interval = _deferralInterval;
                             _fSlideshowIsDeferred = true;
-                            Debug.WriteLineIf(fDebugTrace, "   Slideshow.Defer(): updating _lastTimeDeferWasCalled.");
+                            Logging.LogLineIf(fDebugTrace, "   Slideshow.Defer(): updating _lastTimeDeferWasCalled.");
                             _lastTimeDeferWasCalled = DateTime.Now;
                             _slideshowDeferralTimer.Start();
-                            Debug.WriteLineIf(fDebugTrace, "Slideshow.Defer(): exiting.");
+                            Logging.LogLineIf(fDebugTrace, "Slideshow.Defer(): exiting.");
                             return true;
                         }
                     }
@@ -253,7 +254,7 @@ namespace ScotSoft.PattySaver
                 }
                 else
                 {
-                    Enter();
+                    Start();
                 }
             }
 
@@ -264,13 +265,13 @@ namespace ScotSoft.PattySaver
             {
                 bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
 
-                Debug.WriteLineIf(fDebugTrace, "Slideshow.Exit(): entering (outside locks).");
+                Logging.LogLineIf(fDebugTrace, "Slideshow.Exit(): entered (outside locks).");
 
                 lock (lockSlideshowTimer)
                 {
                     lock (lockSlideshowDeferralTimer)
                     {
-                        Debug.WriteLineIf(fDebugTrace, "   Slideshow.Exit(): inside locks.");
+                        Logging.LogLineIf(fDebugTrace, "   Slideshow.Exit(): inside locks.");
 
                         if (_fSlideshowIsDeferred)
                         {
@@ -297,7 +298,7 @@ namespace ScotSoft.PattySaver
                         }
                     }
                 }
-                Debug.WriteLineIf(fDebugTrace, "Slideshow.Exit(): exiting.");
+                Logging.LogLineIf(fDebugTrace, "Slideshow.Exit(): exiting.");
             }
 
             #endregion Public Members
@@ -309,14 +310,14 @@ namespace ScotSoft.PattySaver
             {
                 bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
 
-                Debug.WriteLineIf(fDebugTrace, "Slideshow.SlideshowDeferralTick(): entering (outside locks).");
+                Logging.LogLineIf(fDebugTrace, "Slideshow.SlideshowDeferralTick(): entering (outside locks).");
 
                 // when the timer goes off, we kill the defer timer
                 lock (lockSlideshowTimer)
                 {
                     lock (lockSlideshowDeferralTimer)
                     {
-                        //Debug.WriteLineIf(fDbgOutput, "   Slideshow.SlideshowDeferralTick(): inside locks.");
+                        //Logging.LogLineIf(fDbgOutput, "   Slideshow.SlideshowDeferralTick(): inside locks.");
 
                         if (_slideshowDeferralTimer != null)
                         {
@@ -328,7 +329,7 @@ namespace ScotSoft.PattySaver
                         }
                         else
                         {
-                            Debug.WriteLineIf(fDebugOutput, "   Slideshow.SlideshowDeferralTick(): called when _slideshowTimer == null.");
+                            Logging.LogLineIf(fDebugOutput, "   Slideshow.SlideshowDeferralTick(): called when _slideshowTimer == null.");
                         }
                     }
 
@@ -341,28 +342,28 @@ namespace ScotSoft.PattySaver
                         }
                         else
                         {
-                            Debug.WriteLineIf(fDebugOutput, "   Slideshow.SlideshowDeferralTick(): _slideshowTimer == null but _fSlideshowIsRunning is true!");
+                            Logging.LogLineIf(fDebugOutput, "   Slideshow.SlideshowDeferralTick(): _slideshowTimer == null but _fSlideshowIsRunning is true!");
                         }
                     }
                     else
                     {
-                        Debug.WriteLineIf(fDebugOutput, "   Slideshow.SlideshowDeferralTick(): called when _fSlideshowIsRunning = false.");
+                        Logging.LogLineIf(fDebugOutput, "   Slideshow.SlideshowDeferralTick(): called when _fSlideshowIsRunning = false.");
                     }
                 }
-                Debug.WriteLineIf(fDebugTrace, "Slideshow.SlideshowDeferralTick(): exiting.");
+                Logging.LogLineIf(fDebugTrace, "Slideshow.SlideshowDeferralTick(): exiting.");
             }
 
             private void SlideshowTimerTick(object obj, EventArgs e)
             {
                 bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
 
-                Debug.WriteLineIf(fDebugTrace, "Slideshow.SlideshowTimerTick(): entering (outside locks).");
+                Logging.LogLineIf(fDebugTrace, "Slideshow.SlideshowTimerTick(): entering (outside locks).");
 
                 lock (lockSlideshowTimer)
                 {
                     lock (lockSlideshowDeferralTimer)
                     {
-                        Debug.WriteLineIf(fDebugTrace, "   Slideshow.SlideshowTimerTick(): inside locks.");
+                        Logging.LogLineIf(fDebugTrace, "   Slideshow.SlideshowTimerTick(): inside locks.");
 
                         if (_fSlideshowIsRunning && !_fSlideshowIsDeferred)   // these could have changed between Start and Exit
                         {
@@ -371,11 +372,11 @@ namespace ScotSoft.PattySaver
                         }
                         else
                         {
-                            Debug.WriteLineIf(fDebugOutput, "   Slideshow.SlideshowTimerTick(): tick went off but (_fSlideshowIsRunning && !_fSlideshowIsDeferred) failed.");
+                            Logging.LogLineIf(fDebugOutput, "   Slideshow.SlideshowTimerTick(): tick went off but (_fSlideshowIsRunning && !_fSlideshowIsDeferred) failed.");
                         }
                     }
                 }
-                Debug.WriteLineIf(fDebugTrace, "Slideshow.SlideshowTimerTick(): exiting.");
+                Logging.LogLineIf(fDebugTrace, "Slideshow.SlideshowTimerTick(): exiting.");
             }
 
             #endregion Private Members

@@ -22,6 +22,10 @@ namespace ScotSoft.PattySaver
     {
         public class FontData
         {
+            bool fDebugOutput = true;
+            bool fDebugAtTraceLevel = false;
+            bool fDebugTrace = false;   // do not modify here, it will be recalculated in constructor
+
             const float RealMaxFontSize = 124F;
             const float RealMinFontSize = 6F;
             const int RealMaxContrastLevel = 12;
@@ -45,6 +49,8 @@ namespace ScotSoft.PattySaver
 
             public FontData()
             {
+                fDebugTrace = fDebugOutput && fDebugAtTraceLevel;
+
                 // Initialize the indexables
                 InitializeIndexableValues();
 
@@ -342,7 +348,7 @@ namespace ScotSoft.PattySaver
                     _colorNameListIndex = newIndex;
                 }
 
-                Logging.LogLine("Metadata now being drawn in color: " + _colorNameList[_colorNameListIndex].ToString());
+                Logging.LogLineIf(fDebugTrace, "Metadata now being drawn in color: " + _colorNameList[_colorNameListIndex].ToString());
                 this._fontColorName = _colorNameList[_colorNameListIndex];
                 // pbMainPhoto.Invalidate();
             }
@@ -372,7 +378,7 @@ namespace ScotSoft.PattySaver
                 {
                     _fontSize = newFontSize;
                 }
-                Logging.LogLine("Metadata now being drawn at size: " + _fontSize.ToString());
+                Logging.LogLineIf(fDebugTrace, "Metadata now being drawn at size: " + _fontSize.ToString());
             }
 
             public void IncrementTextRenderingHint()
@@ -386,7 +392,7 @@ namespace ScotSoft.PattySaver
                 {
                     _textRenderingHintsIndex++;
                 }
-                Logging.LogLine("Metadata now being drawn with Hinting value: " + _textRenderingHintList[_textRenderingHintsIndex].ToString());
+                Logging.LogLineIf(fDebugTrace, "Metadata now being drawn with Hinting value: " + _textRenderingHintList[_textRenderingHintsIndex].ToString());
             }
 
             public void IncrementContrastLevel()
@@ -411,7 +417,7 @@ namespace ScotSoft.PattySaver
                 {
                     _contrastLevel = 0;
                 }
-                Logging.LogLine("Metadata now being drawn in with a Contrast of : " + _contrastLevel.ToString());
+                Logging.LogLineIf(fDebugTrace, "Metadata now being drawn in with a Contrast of : " + _contrastLevel.ToString());
             }
 
             private bool FontSmoothingIsEnabled()
@@ -452,11 +458,11 @@ namespace ScotSoft.PattySaver
                         }
                     }
 
-                    //Logging.LogLine("Count of colors in list: " + colors.Count + ", and here they are:");
+                    //Logging.LogLineIf("Count of colors in list: " + colors.Count + ", and here they are:");
 
                     //for (int i = 0; i < colors.Count; i++)
                     //{
-                    //    Logging.LogLine(colors[i].ToString() + "  " + i);
+                    //    Logging.LogLineIf(colors[i].ToString() + "  " + i);
                     //}
 
                     _textRenderingHintList.Clear();
@@ -467,7 +473,7 @@ namespace ScotSoft.PattySaver
                 }
                 catch (Exception ex)
                 {
-                    Logging.LogLine("InitializeIndexableValues(): Exception thrown, returning false. Exception: " + ex.Message);
+                    Logging.LogLineIf(fDebugOutput, "InitializeIndexableValues(): Exception thrown, returning false. Exception: " + ex.Message);
                     return false;
                 }
             }

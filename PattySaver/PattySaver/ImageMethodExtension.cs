@@ -22,6 +22,11 @@ namespace System.Drawing
 
     public static class ImageExtensions
     {
+
+        static bool fDebugOutput = true;
+        static bool fDebugAtTraceLevel = false;
+        static bool fDebugTrace = false;  // do not modify this here, it is recalculated
+
         /// <summary>
         /// Gets the date the image was taken.
         /// </summary>
@@ -51,13 +56,13 @@ namespace System.Drawing
                 }
                 else
                 {
-                    Logging.LogLine("   GetDateTaken(): PropertyItem returned was null.");
+                    Logging.LogLineIf(fDebugTrace, "   GetDateTaken(): PropertyItem returned was null.");
                     return null;
                 }
             }
             catch (Exception ex)
             {
-                Logging.LogLine("GetDateTaken(): Exception thrown retrieving PropertyItem: " + ex.Message);
+                Logging.LogLineIf(fDebugOutput, "GetDateTaken(): Exception thrown retrieving PropertyItem: " + ex.Message);
                 return null;
             }
         }
@@ -102,7 +107,7 @@ namespace System.Drawing
             }
             catch (Exception ex)
             {
-                Logging.LogLine("GetGpsDateTimeStamp(): Exception thrown retrieving PropertyItem: " + ex.Message);
+                Logging.LogLineIf(fDebugOutput, "GetGpsDateTimeStamp(): Exception thrown retrieving PropertyItem: " + ex.Message);
                 return null;
             }
         }
@@ -146,7 +151,7 @@ namespace System.Drawing
             }
             catch (Exception ex)
             {
-                Logging.LogLine("GetLatitude(): Exception thrown retrieving PropertyItem: " + ex.Message);
+                Logging.LogLineIf(fDebugOutput, "GetLatitude(): Exception thrown retrieving PropertyItem: " + ex.Message);
                 return null;
             }
         }
@@ -168,12 +173,12 @@ namespace System.Drawing
             }
             catch (ArgumentException)
             {
-                Logging.LogLine("GetLongitude(): ArgumentException thrown retrieving PropertyItem.");
+                Logging.LogLineIf(fDebugOutput, "GetLongitude(): ArgumentException thrown retrieving PropertyItem.");
                 return null;
             }
             catch (Exception ex)
             {
-                Logging.LogLine("GetLongitude(): Exception thrown retrieving PropertyItem: " + ex.Message);
+                Logging.LogLineIf(fDebugOutput, "GetLongitude(): Exception thrown retrieving PropertyItem: " + ex.Message);
                 return null;
             }
         }
@@ -198,7 +203,7 @@ namespace System.Drawing
             }
             catch (Exception ex)
             {
-                Logging.LogLine("GetAltitude(): Exception thrown retrieving PropertyItem: " + ex.Message);
+                Logging.LogLineIf(fDebugOutput, "GetAltitude(): Exception thrown retrieving PropertyItem: " + ex.Message);
                 return null;
             }
         }
@@ -241,7 +246,7 @@ namespace System.Drawing
             }
             catch (Exception ex)
             {
-                Logging.LogLine("GetDescription(): Exception thrown retrieving PropertyItem: " + ex.Message);
+                Logging.LogLineIf(fDebugOutput, "GetDescription(): Exception thrown retrieving PropertyItem: " + ex.Message);
                 return null;
             }
         }
