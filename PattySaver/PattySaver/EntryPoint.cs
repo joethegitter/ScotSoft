@@ -14,7 +14,7 @@ namespace ScotSoft.PattySaver
     static class EntryPoint
     {
         static bool fDebugOutput = true;
-        static bool fDebugOutputAtTraceLevel = true;
+        static bool fDebugOutputAtTraceLevel = false;
         static bool fDebugTrace = fDebugOutput && fDebugOutputAtTraceLevel;  
 
         /// <summary>
@@ -26,7 +26,7 @@ namespace ScotSoft.PattySaver
             Application.EnableVisualStyles();                       // boilerplate, ignore
             Application.SetCompatibleTextRenderingDefault(false);   // boilerplate, ignore
 
-            // Provide exception handlers for exceptions that bubble up this high without being caught
+            // Provide handlers for exceptions that bubble up this high without being caught
             Application.ThreadException += new ThreadExceptionEventHandler(Application_ThreadException);
             AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(CurrentDomain_UnhandledException);
 
@@ -113,8 +113,6 @@ namespace ScotSoft.PattySaver
                             break;
                     }
                 }
-                Logging.LogLineIf(fDebugTrace, "Main(): exiting.");
-                return;         
             }
             else
             {
@@ -136,9 +134,6 @@ namespace ScotSoft.PattySaver
                 // Now launch us
                 Launch(mode, toBeHwnd);
             }
-
-            //Logging.LogLineIf("Main(): execution returned to non-VSHOSTED section after Application.Run(). Calling Application.Exit().");
-            //Application.Exit();
             Logging.LogLineIf(fDebugTrace, "Main(): exiting.");
             return;         
         }
