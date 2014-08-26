@@ -49,12 +49,6 @@
             this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.miniControlPanelForm_FormClosed);
             this.Load += new System.EventHandler(this.miniControlPanelForm_Load);
             this.Shown += new System.EventHandler(this.miniControlPanelForm_Shown);
-            this.EnabledChanged += new System.EventHandler(this.miniControlPanelForm_EnabledChanged);
-            this.VisibleChanged += new System.EventHandler(this.miniControlPanelForm_VisibleChanged);
-            this.Enter += new System.EventHandler(this.miniControlPanelForm_Enter);
-            this.Leave += new System.EventHandler(this.miniControlPanelForm_Leave);
-            this.Resize += new System.EventHandler(this.miniControlPanelForm_Resize);
-            this.ParentChanged += new System.EventHandler(this.miniControlPanelForm_ParentChanged);
             this.ResumeLayout(false);
 
         }

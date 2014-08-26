@@ -22,5 +22,19 @@ namespace ScotSoft.PattySaver
             textBox1.Text = Logging.strBuffer;
             textBox1.Select(textBox1.Text.Length - 1, 0);
         }
+
+        /// <summary>
+        /// Override of ShowWithoutActivation property.  In theory, this tells
+        /// Windows that when our window gets shown, it should not receive activation.
+        /// </summary>
+        protected override bool ShowWithoutActivation
+        {
+            get
+            {
+                return true;
+            }
+        }
     }
+
+
 }
