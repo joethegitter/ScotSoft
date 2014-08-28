@@ -115,7 +115,7 @@ namespace ScotSoft.PattySaver
             // is different than that for "all of these other values, whose count is fixed".
             DataTable dtLists = new DataTable("ListsData", "myTableNamespace");
             dtLists.Columns.Add("RowType", typeof(string));  // we'll use "File" or "MetaData"
-            dtLists.Columns.Add("Checked", typeof(bool));
+            dtLists.Columns.Add("Designated", typeof(bool));
             dtLists.Columns.Add("Name", typeof(string));
 
             // Add current value of those settings to the table. First column is Type of data,
@@ -125,8 +125,8 @@ namespace ScotSoft.PattySaver
             {
                 DataRow drl = dtLists.NewRow();
                 drl["RowType"] = "File";
-                drl["Checked"] = kvp.Key;       // when we are stable enough to take breaking changes, change this to "Designated"
-                drl["Name"] = kvp.Value;        // and this to "Value"
+                drl["Designated"] = kvp.Key;
+                drl["Name"] = kvp.Value;
                 dtLists.Rows.Add(drl);
             }
 
@@ -219,25 +219,6 @@ namespace ScotSoft.PattySaver
 
             Logging.LogLineIf(fDebugTrace, "InitializeAndLoadConfigSettingsFromStorage(): exiting.");
         }
-
-        ///// <summary>
-        ///// Adds a filename to our "do not show" blacklist
-        ///// </summary>
-        ///// <param name="filenameToBeAdded">Full Filename (path and name) to be excluded.</param>
-        //public static void AddFilenameToBlacklist(String filenameToBeAdded)
-        //{
-        //    KeyValuePair<DateTime, string> kvp = new KeyValuePair<DateTime, string>(dummyDT, filenameToBeAdded);
-
-        //    if (!ConfigSettings.BlacklistedFilenames.Contains(kvp, BlackListFilenameComparer))
-        //    {
-        //        ConfigSettings.BlacklistedFilenames.Add(new KeyValuePair<DateTime, string>(DateTime.Now, filenameToBeAdded));
-        //        ConfigSettings.BlacklistedFilenamesList.Add(filenameToBeAdded);
-        //    }
-        //    else
-        //    {
-        //        Logging.LogLineIf("Not adding duplicate filename to blacklist " + kvp.Value);
-        //    }
-        //}
 
         public static void AddFullFilenamesToBlacklist(List<String> FullFilenames)
         {
@@ -352,11 +333,11 @@ namespace ScotSoft.PattySaver
                     if (rowType == "File")
                     {
                         // Add the data from that row to the correct List
-                        DirectoriesList.Add(new KeyValuePair<bool, string>((bool)dtLists.Rows[i]["Checked"], (string)dtLists.Rows[i]["Name"]));
+                        DirectoriesList.Add(new KeyValuePair<bool, string>((bool)dtLists.Rows[i]["Designated"], (string)dtLists.Rows[i]["Name"]));
                     }
                     else if (rowType == "MetaData")
                     {
-                        MetaDataList.Add(new KeyValuePair<bool, string>((bool)dtLists.Rows[i]["Checked"], (string)dtLists.Rows[i]["Name"]));
+                        MetaDataList.Add(new KeyValuePair<bool, string>((bool)dtLists.Rows[i]["Designated"], (string)dtLists.Rows[i]["Name"]));
                     }
                     else
                     {
@@ -469,37 +450,37 @@ namespace ScotSoft.PattySaver
             // dbgLastWindow stuff is set in ConfigSettings initialization code
         }
 
-        private static string GetConfigFileBaseName()
+        private static string GetConfigBaseFilename()
         {
             // get name of our .exe/.scr, remove the extension, add the target path
             string[] args = Environment.GetCommandLineArgs();  // returns full name of our exe/scr, including path, in item zero
 
             // get just the filename, without extension, from the path in item zero
-            string fileNameBase = System.IO.Path.GetFileNameWithoutExtension(args[0]);
+            string BaseFilename = System.IO.Path.GetFileNameWithoutExtension(args[0]);
 
             // now remove any secondary extensions, like ".vshost"
-            while (fileNameBase != System.IO.Path.GetFileNameWithoutExtension(fileNameBase))
+            while (BaseFilename != System.IO.Path.GetFileNameWithoutExtension(BaseFilename))
             {
-                fileNameBase = System.IO.Path.GetFileNameWithoutExtension(fileNameBase);
+                BaseFilename = System.IO.Path.GetFileNameWithoutExtension(BaseFilename);
             }
 
             // add the target path
-            return System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), fileNameBase);
+            return System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), BaseFilename);
         }
 
         private static string GetConfigSettingsListFileName()
         {
-            return GetConfigFileBaseName() + ".directories.cfg";
+            return GetConfigBaseFilename() + ".directories.cfg";
         }
 
         private static string GetConfigSettingsDataFileName()
         {
-            return GetConfigFileBaseName() + ".settings.cfg";
+            return GetConfigBaseFilename() + ".settings.cfg";
         }
 
         private static string GetConfigSettingsBlacklistFileName()
         {
-            return GetConfigFileBaseName() + ".ignorefiles.cfg";
+            return GetConfigBaseFilename() + ".ignorefiles.cfg";
         }
 
         public class BlacklistFullFilenameComparer : IEqualityComparer<KeyValuePair<DateTime, string>>

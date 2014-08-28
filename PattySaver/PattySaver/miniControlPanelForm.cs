@@ -44,6 +44,9 @@ namespace ScotSoft.PattySaver
         // hWnd of window to make our parent window
         IntPtr iphWnd;      // value is passed in the form constructor
 
+        // debug output window
+        ScrollingTextWindow debugOutputWindow = null;
+
         #endregion Fields
 
 
@@ -53,7 +56,8 @@ namespace ScotSoft.PattySaver
         /// Constructor.
         /// </summary>
         /// <param name="hWnd">IntPtr conversion of long-based hWnd passed to us by Windows, along with the /p parameter.</param>
-        public miniControlPanelForm(IntPtr hWnd)
+        public miniControlPanelForm(IntPtr hWnd)            // get the stored config data
+
         {
             fInConstructor = true;
 
@@ -94,7 +98,7 @@ namespace ScotSoft.PattySaver
             msgsToIgnore.Add((int)0x00A0);
             msgsToIgnore.Add((int)0x0020);   // WM_SETCURSOR
 
-            // get the stored config data
+            // get the stored (or newly initialized) settings info
             Logging.LogLineIf(fDebugTrace, "   miniControlPanelForm.ctor(): calling InitializeAndLoadConfigSettingsFromStorage()");
             SettingsInfo.InitializeAndLoadConfigSettingsFromStorage();            // Load configutation data from disk
 
@@ -219,11 +223,14 @@ namespace ScotSoft.PattySaver
             this.Location = new Point(0, 0);
 
             // Start a timer, so we can (optionally) show the debug window AFTER we've already shown the form
-            Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Load(): Starting timer:");
-            tock = new Timer();
-            tock.Interval = 6000;       // six seconds
-            tock.Tick += tock_Tick;     // bind the event handler
-            tock.Start();
+            if (LaunchManager.Modes.fPopUpDebugOutputWindowOnTimer)
+            {
+                Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Load(): Starting timer to pop up debug output window:");
+                tock = new Timer();
+                tock.Interval = 6000;       // six seconds
+                tock.Tick += tock_Tick;     // bind the event handler
+                tock.Start();
+            }
 
             // Kick off the disk scan, so we can start a slideshow
             Logging.LogLineIf(fDebugTrace, "ScreenSaverForm_Load(): creating MainFiles, should kick off disk scan.");
@@ -296,12 +303,16 @@ namespace ScotSoft.PattySaver
 
         void tock_Tick(object sender, EventArgs e)
         {
-            tockCount++;
+            // if this method has been called, it's because we want to the 
+            // debug ouput window to pop up (ie, it can't be called directly
+            // because there is no user UX - miniPreview mode, essentially)
 
             Logging.LogLineIf(fDebugTrace, "tock_Tick(): entered.");
+            Logging.LogLineIf(fDebugTrace, "   tock_Tick(): creating debugOutputWindow:");
 
-            // temporarily, provide us with a scrolling text window for debug output
-            Logging.ShowHideDebugWindow(this);
+            debugOutputWindow = new ScrollingTextWindow(this);
+            debugOutputWindow.CopyTextToClipboardOnClose = true;
+            debugOutputWindow.ShowDisplay();
 
             Logging.LogLineIf(fDebugTrace, "  tock_Tick(): Killing timer.");
 

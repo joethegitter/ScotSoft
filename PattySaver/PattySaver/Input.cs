@@ -290,7 +290,22 @@ namespace ScotSoft.PattySaver
                     break;
 
                 case Keys.F9:
-                    Logging.ShowHideDebugWindow(this);
+                    if (debugOutputWindow != null)
+                    {
+                        if (debugOutputWindow.DisplayIsVisible)
+                        {
+                            debugOutputWindow.HideDisplay();
+                        }
+                        else
+                        {
+                            debugOutputWindow.ShowDisplay();
+                        }
+                    }
+                    else
+                    {
+                        debugOutputWindow = new ScrollingTextWindow(this);
+                        debugOutputWindow.ShowDisplay();
+                    }
                     break;
 
                 case Keys.F11:

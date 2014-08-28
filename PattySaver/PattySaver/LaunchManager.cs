@@ -33,10 +33,11 @@ namespace ScotSoft.PattySaver.LaunchManager
         public static string dbgScreenSaverValAddition = nv;    // information added by the Settings Screen code
 
         public static bool fVSHOSTED = false;
-        public static bool fAllowUseOfDebugOutputWindow = false;
+        public static bool fPopUpDebugOutputWindowOnTimer = false;
         public static bool fOpenInScreenSaverMode = true;
         public static bool fNoArgMode = true;
         public static bool UnofficialArgOverrideWindowed = false;
+        public static bool fMaintainBuffer = false;
 
         public static LaunchModality LaunchMode = LaunchModality.Undecided;
 

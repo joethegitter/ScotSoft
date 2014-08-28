@@ -13,60 +13,73 @@ namespace ScotSoft.PattySaver
 {
     static class EntryPoint
     {
+        public const string VSHOSTED = ".vshost"; // string appended to our exe basename by VS when hosted
+        public const string DBGWIN = ".dbgwin";   // appended by user to enable debug output window in non-hosted build
+
         static bool fDebugOutput = true;
-        static bool fDebugOutputAtTraceLevel = false;
+        static bool fDebugOutputAtTraceLevel = true;
         static bool fDebugTrace = fDebugOutput && fDebugOutputAtTraceLevel;  
 
         /// <summary>
-        /// The main entry point for the application/screen saver.
+        /// The entry point for our application.
         /// </summary>
         [STAThread]
-        static void Main(string[] args)
+        static void Main(string[] mainArgs)
         {
             Application.EnableVisualStyles();                       // boilerplate, ignore
             Application.SetCompatibleTextRenderingDefault(false);   // boilerplate, ignore
 
-            // Provide handlers for exceptions that bubble up this high without being caught
+            // Provide exception handlers for exceptions that bubble up this high without being caught.
             Application.ThreadException += new ThreadExceptionEventHandler(Application_ThreadException);
             AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(CurrentDomain_UnhandledException);
 
-            // if there is no debugger and/or logger available, send Logging.LogLineIf() output
-            // to a string buffer and/or scrolling text window so we can see it.
-            if (Logging.CannotLog())
-            {
-                Logging.Destination = Logging.LogDestination.String;
-            }
-            else
-            {
-                Logging.Destination = Logging.LogDestination.Default;
-            }
-
-            Logging.LogLineIf(fDebugTrace, "Main(): entered.");
-            Logging.LogLineIf(fDebugTrace, "   Main(): Debug Output Destination is: " + Logging.Destination.ToString());
-
-            // store the command line
+            // Store away the actual command line that launched us.
             string cmdLine = System.Environment.CommandLine;
+
+            // Now get the REAL command line args, because the full name and path of
+            // our executable is conveniently stored in item zero.
+            string[] EnvArgs = Environment.GetCommandLineArgs(); 
+
+            // Determine if we are running hosted by Visual Studio.
+            Modes.fVSHOSTED = EnvArgs[0].ToLowerInvariant().Contains(VSHOSTED.ToLowerInvariant());
+
+            // Determine early if we need to maintain the debugOutput buffer
+            if (cmdLine.ToLowerInvariant().Contains("/usebuffer")) Modes.fMaintainBuffer = true;
+
+            // Determine if we need to put up the debug output window after a timer goes off
+            // (for cases where there is no user interaction available, ie miniControlPanelForm)
+            Modes.fPopUpDebugOutputWindowOnTimer = EnvArgs[0].ToLowerInvariant().Contains(DBGWIN.ToLowerInvariant());
+            if (Modes.fPopUpDebugOutputWindowOnTimer) Modes.fMaintainBuffer = true;
+
+            // If there is a debugger available and logging, add it to the list of LogDestinations
+            if (!Logging.CannotLog()) Logging.AddLogDestination(Logging.LogDestination.Default);
+
+            // If necessary, add the buffer to the list
+            if (Modes.fMaintainBuffer) Logging.AddLogDestination(Logging.LogDestination.Buffer);
+
+            // Start logging
+            Logging.LogLineIf(fDebugTrace, "Main(): entered.");
+            Logging.LogIf(fDebugTrace, "  Main(): Logging.LogDestinations: ");
+            foreach (Logging.LogDestination dest in Logging.LogDestinations)
+            {
+                Logging.LogIf(fDebugTrace, dest.ToString() + "  ");
+            }
             Logging.LogLineIf(fDebugOutput, "   Main(): CommandLine was: " + cmdLine);
 
-            // determine if we are running hosted by Visual Studio
-            Modes.fVSHOSTED = cmdLine.ToLowerInvariant().Contains(".vshost");
-
-            // determine if we are running a file specifying to use the debug output UI
-            Modes.fAllowUseOfDebugOutputWindow = cmdLine.ToLowerInvariant().Contains("_dbgwin");
-
+            // Set launch modes based on data we've gathered so far
             if (Modes.fVSHOSTED)  // we're a process launched by Visual Studio 
             {
-                Logging.LogLineIf(fDebugOutput, "   Main(): we are hosted by Visual Studio.");
+                Logging.LogLineIf(fDebugOutput, "   Main(): process is hosted by Visual Studio.");
 
-                if (args.Length < 1)                                // There were no args: open in non-maximized state to help debugging
+                if (mainArgs.Length < 1)                                // There were no args: open in non-maximized state to help debugging
                 {
-                    Logging.LogLineIf(fDebugOutput, @"   Main(): No cmdline args detected, so we'll open in normal mode (!ScreenSaverMode).");
+                    Logging.LogLineIf(fDebugOutput, @"   Main(): No cmdline args detected, so we'll open in with normal window style (not ScreenSaverWindowStyle).");
                     LaunchManager.Modes.fNoArgMode = true;
                     LaunchManager.Modes.fOpenInScreenSaverMode = false;
                     ShowScreenSaver();
                     Application.Run();
                 }
-                else
+                else  // examine the args
                 {
                     // When VSHOSTED, we initially only examine the first argument to determine if it is official.
                     // For official args, we only look at the first two chars. If we determine that there is an arg
@@ -74,7 +87,7 @@ namespace ScotSoft.PattySaver
                     // args found after any (or no) official args.
 
                     // Get the first two 2 chars of first command line argument, ignore anything past
-                    string arg = args[0].ToLowerInvariant().Trim().Substring(0, 2);
+                    string arg = mainArgs[0].ToLowerInvariant().Trim().Substring(0, 2);
                     switch (arg)
                     {
                         case "/c":
@@ -126,7 +139,7 @@ namespace ScotSoft.PattySaver
                 Modes.LaunchModality mode = Modes.LaunchModality.Undecided;
 
                 // Determine which mode we should launch in from 'official' arguments
-                mode = Modes.GetLaunchModalityFromCmdLineArgs(args, out toBeHwnd, out publicArgsConsumed);
+                mode = Modes.GetLaunchModalityFromCmdLineArgs(mainArgs, out toBeHwnd, out publicArgsConsumed);
 
                 // Handle any 'unofficial' arguments
                 HandleUnofficialArguments(publicArgsConsumed);
@@ -135,12 +148,11 @@ namespace ScotSoft.PattySaver
                 Launch(mode, toBeHwnd);
             }
             Logging.LogLineIf(fDebugTrace, "Main(): exiting.");
-            return;         
         }
 
 
         /// <summary>
-        /// Display the Full Screen form on each of the computer's monitors.
+        /// Displays the ScreenSaver form on each of the computer's monitors.
         /// </summary>
         static void ShowScreenSaver()
         {
@@ -153,7 +165,7 @@ namespace ScotSoft.PattySaver
 
 
         /// <summary>
-        /// Display the Settings form.
+        /// Displays the Settings form; used when command line has no args, or when args = /c.
         /// </summary>
         static void ShowSettings()
         {
@@ -161,8 +173,9 @@ namespace ScotSoft.PattySaver
             settings.Show();
         }
 
+
         /// <summary>
-        /// Display the Settings form.
+        /// Displays the Settings form when requested the Control Panel.
         /// </summary>
         static void ShowSettings(IntPtr hwnd)
         {
@@ -170,8 +183,9 @@ namespace ScotSoft.PattySaver
             settings.Show();
         }
 
+
         /// <summary>
-        /// Display something in the mini-preview of the control panel
+        /// Show the little miniControlPanelForm in the Control Panel window
         /// </summary>
         /// <param name="hwnd">hwnd to the little window of the control panel.</param>
         static void ShowMiniPreview(IntPtr hwnd)
@@ -208,7 +222,7 @@ namespace ScotSoft.PattySaver
 
 
         /// <summary>
-        /// Handles "real" launch (as opposed to as an VSHOSTED).
+        /// Handles "real" launch (as opposed to VSHOSTED mode).
         /// </summary>
         /// <param name="LaunchMode"></param>
         /// <param name="toBeHwnd"></param>
@@ -244,7 +258,7 @@ namespace ScotSoft.PattySaver
             if (LaunchMode == Modes.LaunchModality.Configure)
             {
                 ShowSettings();
-                Logging.LogLineIf(fDebugTrace, "Launch(): calling Application.Run().");
+                Logging.LogLineIf(fDebugTrace, "   Launch(): calling Application.Run().");
                 Application.Run();
             }
             else if (LaunchMode == Modes.LaunchModality.Configure_WithWindowHandle)
@@ -256,14 +270,14 @@ namespace ScotSoft.PattySaver
             else if (LaunchMode == Modes.LaunchModality.FullScreen)
             {
                 ShowScreenSaver();
-                Logging.LogLineIf(fDebugTrace, "Launch(): calling Application.Run().");
+                Logging.LogLineIf(fDebugTrace, "   Launch(): calling Application.Run().");
                 Application.Run();
             }
             else if (LaunchMode == Modes.LaunchModality.Mini_Preview)
             {
                 IntPtr previewWndHandle = new IntPtr(toBeHwnd);
                 ShowMiniPreview(previewWndHandle);
-                Logging.LogLineIf(fDebugTrace, "Launch(): calling Application.Run().");
+                Logging.LogLineIf(fDebugTrace, "   Launch(): calling Application.Run().");
                 Application.Run();
             }
             else if (LaunchMode == Modes.LaunchModality.NOLAUNCH)
@@ -288,10 +302,10 @@ namespace ScotSoft.PattySaver
                 // In release, we'll just quietly fail here, and launch in Configure mode
                 ShowSettings();
 
-                Logging.LogLineIf(fDebugTrace, "Launch(): we fell through to Mode.Undecided, calling Application.Run().");
+                Logging.LogLineIf(fDebugOutput, " ** Launch(): we fell through to Mode.Undecided, calling Application.Run().");
 
                 Application.Run();
-                Logging.LogLineIf(fDebugTrace, "Launch(): exiting for real.");
+                Logging.LogLineIf(fDebugTrace, "Launch(): exiting for realsies.");
             }
         }
 

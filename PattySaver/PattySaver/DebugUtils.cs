@@ -11,84 +11,133 @@ using ScotSoft.PattySaver.DebugUtils;
 
 namespace ScotSoft.PattySaver.DebugUtils
 {
+    public interface IDebugOutputConsumer
+    {
+        void ConsumeDebugOutputBuffer(string SomeText);
+        void ConsumeDebugOutput(string SomeText);
+    }
+
     class Logging
     {
+        static private List<LogDestination> Destinations = new List<LogDestination>();
+
+        static public void AddLogDestination(LogDestination destination)
+        {
+            Destinations.Add(destination);
+        }
+
+        static public void RemoveLogDestination(LogDestination destination)
+        {
+            Destinations.Remove(destination);
+        }
+
+        static public void ClearLogDestinations()
+        {
+            Destinations.Clear();
+        }
+
+        static public IReadOnlyList<LogDestination> LogDestinations
+        {
+            get
+            {
+                return (IReadOnlyList<LogDestination>)Destinations;
+            }
+        }
+
+        static public bool DestinationsContains(LogDestination destination)
+        {
+            return Destinations.Contains(destination);
+        }
+
+        static private List<IDebugOutputConsumer> Consumers = new List<IDebugOutputConsumer>();
+
+        static public void AddConsumer(IDebugOutputConsumer consumer)
+        {
+            if (consumer != null)
+            {
+                Consumers.Add(consumer);
+
+                if (strBuffer != null)
+                {
+                    // send the consumer what is in the buffer now
+                    consumer.ConsumeDebugOutputBuffer(strBuffer);
+                }
+            }
+        }
+
+        static public void RemoveConsumer(IDebugOutputConsumer consumer)
+        {
+            if (consumer != null)
+            {
+                if (!Consumers.Remove(consumer))
+                {
+                    System.Diagnostics.Debug.WriteLineIf(true, " *** RemoveConsumer():  FAILED to remove desired consumer from Consumers!");
+                }
+            }
+        }
+
+        static public void ClearConsumers()
+        {
+            Consumers.Clear();
+        }
+
+        static public bool ConsumersContains(IDebugOutputConsumer consumer)
+        {
+            return Consumers.Contains(consumer);
+        }
+
+
+        static private string strBuffer = "";
+
         public enum LogDestination
         {
             Default,
-            String
+            Buffer
         };
 
-        static public LogDestination dest = LogDestination.Default;
-
-        static public LogDestination Destination { get; set; }
-
-        static public string strBuffer = "";
-
-        static private Form dbgWindow = null;
-
-        static private TextBox tx = null;
-
-        static public bool ShowHideDebugWindow(Form callingForm)
-        {
-            if (!Modes.fAllowUseOfDebugOutputWindow)
-            {
-                return false;
-            }
-
-            if (dbgWindow == null)  // has not been created yet
-            {
-                if ((callingForm.TopMost == true) && (callingForm.WindowState == FormWindowState.Maximized))
-                {
-                    // order is important, do not modify
-                    callingForm.ShowIcon = true;
-                    callingForm.MaximizeBox = true;
-                    callingForm.MinimizeBox = true;
-                    callingForm.ControlBox = true;
-                    callingForm.ShowInTaskbar = true;
-                    callingForm.TopMost = false;
-                    callingForm.WindowState = FormWindowState.Normal;
-                    callingForm.FormBorderStyle = FormBorderStyle.Sizable;
-                }
-
-                dbgWindow = new ScrollingTextWindow();
-                dbgWindow.Location = new System.Drawing.Point(0, 0);
-                dbgWindow.Show(callingForm);
-            }
-            else if (dbgWindow.Visible == false)
-            {
-                dbgWindow.Visible = true;
-            }
-            return true;
-        }
-
+        /// <summary>
+        /// The only method that actually logs. All other LogX statements call this statement.
+        /// </summary>
+        /// <param name="level"></param>
+        /// <param name="category"></param>
+        /// <param name="message"></param>
+        /// <param name="AddCrLf"></param>
         static public void Log(int level, string category, string message, bool AddCrLf = false)
         {
             if (AddCrLf) message = message + Environment.NewLine;
-            if (Destination == LogDestination.Default)
+
+            if (DestinationsContains(LogDestination.Default))
             {
                 System.Diagnostics.Debugger.Log(level, category, message);
             }
-            else
+
+            if (DestinationsContains(LogDestination.Buffer))
             {
-                if (dbgWindow == null)
+                // if strBuffer.Length gets too larege clear it
+                if (strBuffer.Length > Int32.MaxValue / 3)
                 {
-                    // get the size of the buffer
-                    if (strBuffer.Length > (32000)) strBuffer = "";
-
-                    strBuffer = strBuffer + message;
+                    strBuffer = "";
+                    GC.Collect();
+                    strBuffer += "<< Cleared strBuffer as its length became greater than " + (Int32.MaxValue / 3) + " >>" + Environment.NewLine;
                 }
-                else
+                strBuffer += message;
+
+                // Now send the message to any IDebugOutputConsumers in Consumers
+                try
                 {
-                    if (tx == null)
+                    foreach (IDebugOutputConsumer idoc in Consumers)
                     {
-                        tx = (TextBox)dbgWindow.Controls[0];
+                        if (idoc != null)
+                        {
+                            idoc.ConsumeDebugOutput(message);
+                        }
                     }
-
-                    tx.Text = tx.Text + message;
-                    if (tx.Text.Length > (32000)) tx.Text = "";
-
-                    tx.Select(tx.Text.Length - 1, 0);
+                }
+                catch (Exception ex)
+                {
+                    // not much we can do here. Logging the exception would just throw this again. 
+                    // TODO: #define DEBUG, then show message box
+                    System.Diagnostics.Debug.WriteLine("Log(): Exception thrown feeding one of the Consumers. Exception: " + ex.Message);
                 }
             }
         }

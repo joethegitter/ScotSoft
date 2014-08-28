@@ -28,7 +28,8 @@ namespace ScotSoft.PattySaver
         public FontDialog fontdlg;                              // the Font Dialog we'll use from FullScreen and Settings forms
         public Font fdFont;                                     // the Font we use to format the font dialog
         public ColorDialog colordlg;                            // The Color Dialog we'll use from FullScreen and Settings forms
-        public FontData metaFontData;                           // Class we defined, object which holds the data we use to build our metadata font
+        public FontData metaFontData;                           // An object we use to hold the data we use to build our metadata font
+        public ScrollingTextWindow debugOutputWindow = null;    // The debug output window, null if not in use
 
         // Objects which provide access to Files
         private MainFileInfoSource MainFiles;                   // Class we defined, object holding Main fileinfo list, with methods for manipulation thereof.
@@ -767,7 +768,7 @@ namespace ScotSoft.PattySaver
         private void EnterExploreFolderMode()
         {
             bool fDebugOutput = true;
-            bool fDebugOutputTraceLevel = false;
+            bool fDebugOutputTraceLevel = true;
             bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
 
             Logging.LogLineIf(fDebugTrace, "EnterExploreFolderMode(): entered.");
@@ -874,7 +875,7 @@ namespace ScotSoft.PattySaver
         private void ExitExploreFolderMode(bool fPrevious, bool fExternallyCalled = false)
         {
             bool fDebugOutput = true;
-            bool fDebugOutputTraceLevel = false;
+            bool fDebugOutputTraceLevel = true;
             bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
 
             // TODO: convert LogLine to WriteLineIf
