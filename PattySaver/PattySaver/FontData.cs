@@ -348,7 +348,7 @@ namespace ScotSoft.PattySaver
                     _colorNameListIndex = newIndex;
                 }
 
-                Logging.LogLineIf(fDebugTrace, "Metadata now being drawn in color: " + _colorNameList[_colorNameListIndex].ToString());
+                Logging.LogLineIf(fDebugOutput, "Metadata now being drawn in color: " + _colorNameList[_colorNameListIndex].ToString());
                 this._fontColorName = _colorNameList[_colorNameListIndex];
                 // pbMainPhoto.Invalidate();
             }
@@ -378,7 +378,7 @@ namespace ScotSoft.PattySaver
                 {
                     _fontSize = newFontSize;
                 }
-                Logging.LogLineIf(fDebugTrace, "Metadata now being drawn at size: " + _fontSize.ToString());
+                Logging.LogLineIf(fDebugOutput, "Metadata now being drawn at size: " + _fontSize.ToString());
             }
 
             public void IncrementTextRenderingHint()
@@ -392,7 +392,7 @@ namespace ScotSoft.PattySaver
                 {
                     _textRenderingHintsIndex++;
                 }
-                Logging.LogLineIf(fDebugTrace, "Metadata now being drawn with Hinting value: " + _textRenderingHintList[_textRenderingHintsIndex].ToString());
+                Logging.LogLineIf(fDebugOutput, "Metadata now being drawn with Hinting value: " + _textRenderingHintList[_textRenderingHintsIndex].ToString());
             }
 
             public void IncrementContrastLevel()
@@ -417,7 +417,7 @@ namespace ScotSoft.PattySaver
                 {
                     _contrastLevel = 0;
                 }
-                Logging.LogLineIf(fDebugTrace, "Metadata now being drawn in with a Contrast of : " + _contrastLevel.ToString());
+                Logging.LogLineIf(fDebugOutput, "Metadata now being drawn in with a Contrast of : " + _contrastLevel.ToString());
             }
 
             private bool FontSmoothingIsEnabled()

@@ -438,6 +438,9 @@ namespace ScotSoft.PattySaver
                 {
                     DoUpdateFontSize(e.Delta);
                 }
+ 
+                pbMain.Invalidate();
+
             }
         }
 
@@ -458,6 +461,7 @@ namespace ScotSoft.PattySaver
                 {
                     metaFontData.IncrementContrastLevel();
                 }
+
                 pbMain.Invalidate();
             }
         }
