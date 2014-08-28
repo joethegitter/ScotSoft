@@ -292,14 +292,7 @@ namespace ScotSoft.PattySaver
                 case Keys.F9:
                     if (debugOutputWindow != null)
                     {
-                        if (debugOutputWindow.DisplayIsVisible)
-                        {
-                            debugOutputWindow.HideDisplay();
-                        }
-                        else
-                        {
-                            debugOutputWindow.ShowDisplay();
-                        }
+                        debugOutputWindow.ToggleDisplayVisibility();
                     }
                     else
                     {
