@@ -97,9 +97,9 @@ namespace ScotSoft.PattySaver
 
         private void tsmNextInFolder_Click(object sender, EventArgs e)
         {
-            // TODO: there's an issue with wrapping WasInSlideshowMode in both MenuOpen/Close and in event handlers
-            // called by these menu items. The mode will be wrong when the event handlers look at it. Check to see
-            // if the menu close is happening BEFORE or AFTER the menu click event, and make the whole Mode thing more robust...
+            // TODO: there's an issue with wrapping WasInSlideshowMode in both MenuOpen/Close event AND in the 
+            // DoArrowKeyX methods. Only the outermost handler will actually see the correct state, the 
+            // othe handlers will see the state after the outermost has handled it. 
 
             DoArrowKeyUp();
         }
@@ -173,6 +173,7 @@ namespace ScotSoft.PattySaver
         private void ScreenSaverForm_PreviewKeyDown(object sender, PreviewKeyDownEventArgs e)
         {
             fInputDebugTrace = fInputDebugOutput && fInputDebugOutputAtTraceLevel;
+
             Logging.LogLineIf(fInputDebugTrace, "ScreenSaverForm_PreviewKeyDown(): entered.");
 
             // To test which keys cause which events, un-comment the next line
@@ -196,9 +197,10 @@ namespace ScotSoft.PattySaver
         private void ScreenSaverForm_KeyDown(object sender, KeyEventArgs e)
         {
             fInputDebugTrace = fInputDebugOutput && fInputDebugOutputAtTraceLevel;
+
             Logging.LogLineIf(fInputDebugTrace, "ScreenSaverForm_KeyDown(): entered.");
 
-            // To test which keys cause which events, un-comment the next line
+            // To test which keys cause which events, un-comment the following lines
             //Logging.LogLineIf(fInputDebugTrace, "   KeyDown(): KeyCode = " + e.KeyCode + ", KeyValue = " + e.KeyValue +
             //    ", KeyData = " + e.KeyData + ", Modifiers = " + e.Modifiers.ToString() + ", Handled = " + e.Handled);
 
@@ -380,8 +382,8 @@ namespace ScotSoft.PattySaver
         /// <param name="e"></param>
         private void ScreenSaverForm_KeyUp(object sender, KeyEventArgs e)
         {
-
             fInputDebugTrace = fInputDebugOutput && fInputDebugOutputAtTraceLevel;
+
             Logging.LogLineIf(fInputDebugTrace, "ScreenSaverForm_KeyUp(): entered.");
 
             //// To test which keys cause which events, un-comment the next line

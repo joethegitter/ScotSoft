@@ -773,7 +773,6 @@ namespace ScotSoft.PattySaver
 
             Logging.LogLineIf(fDebugTrace, "EnterExploreFolderMode(): entered.");
 
-            // TODO: convert LogLine to WriteLineIf
             if (fInETFMode)
             {
                 Logging.LogLineIf(fDebugTrace, "    EnterExploreFolderMode(); Not Entering Explore This Folder mode, we're already in it.");
@@ -878,7 +877,6 @@ namespace ScotSoft.PattySaver
             bool fDebugOutputTraceLevel = true;
             bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
 
-            // TODO: convert LogLine to WriteLineIf
             Logging.LogLineIf(fDebugTrace, "ExitExploreFolderMode(): Entering method, fExternallyCalled = " + fExternallyCalled);
 
             if (fInETFMode)

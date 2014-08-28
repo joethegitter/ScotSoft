@@ -15,7 +15,6 @@ Backspace       Toggles the display of photo metadata
 F1              Opens this dialog box (Help / About)
 F2              Opens the Settings dialog box
 F3              Opens the Font and Color Dialog
-F4              Opens the Advanced Color Dialog
 
 Delete          Marks the currently displayed photo as
                 'Do not display in Screen Saver'.
@@ -29,7 +28,7 @@ Down Arrow      Pauses Slideshow and enters
 
 While in 'Explore Photos in this Folder' mode, the Up Arrow Key acts as 'Show Next Photo in this Folder', and the Down Arrow key acts as 'Show Previous Photo in this Folder'. To leave 'Explore Photos in this Folder' mode, press the Left or Right Arrow key, which will take you to the next or previous photo in your Slideshow.
 
-Secret Double-Probation Keys (Advanced, Hush-hush)
+Double Secret Probation Keys (Advanced, Hush-hush)
 --------------------------------------------------
 
 Control+S       Toggles the "shadow effect" applied
@@ -58,3 +57,36 @@ Control+Shift+MouseWheelClick
                 Summons a doctor to treat your 
                 obsessiveness problem. And your
                 carpal tunnel syndrome.
+
+F9              Show or Hide debug logging window.
+
+
+  Secret Double-Probation Command Line Arguments
+--------------------------------------------------
+
+"Official" command line arguments
+
+<no args>       Just launch to Settings dialog.
+
+/c              Just launch to Settings dialog.
+
+/s              Launch in Screen Saver mode.
+
+"Unofficial" arguments
+
+/window         Overrides all other args, forces
+                launch into Screen Saver mode.
+
+/usebuffer      All debug logging output will be
+                stored in a buffer, even if
+                debug output window is has not
+                yet been shown.
+
+.dbgwin         If this EXTENSION is inserted
+                into the filename - like,
+                PattySaver.dgbwin.exe -
+                the debug output window will 
+                pop up 6 seconds after launch.
+                This is primarily used for 
+                debugging our Control Panel
+                Mini Preview window.

@@ -59,11 +59,12 @@ namespace ScotSoft.PattySaver
 
             // Start logging
             Logging.LogLineIf(fDebugTrace, "Main(): entered.");
-            Logging.LogIf(fDebugTrace, "  Main(): Logging.LogDestinations: ");
+            Logging.LogIf(fDebugTrace, "  Main(): Log Destinations are set to: ");
             foreach (Logging.LogDestination dest in Logging.LogDestinations)
             {
                 Logging.LogIf(fDebugTrace, dest.ToString() + "  ");
             }
+            Logging.LogIf(fDebugTrace, Environment.NewLine);
             Logging.LogLineIf(fDebugOutput, "   Main(): CommandLine was: " + cmdLine);
 
             // Set launch modes based on data we've gathered so far
