@@ -22,14 +22,18 @@ namespace ScotSoft.PattySaver
         #region Data
 
         bool fDebugOutput = true;
-        bool fDebugAtTraceLevel = false;
+        bool fDebugAtTraceLevel = true;
         bool fDebugTrace = false; // do not modify here, it's recalculated at method level
+        ScrollingTextWindow debugOutputWindow = null;
 
-        private bool InPreLoad = true;
-        private bool InLoad = false;
+        private bool fConstructorHasCompleted = false;
+        private bool fConstructorIsRunning = false;
+        private bool fLoadHasCompleted = false;
+        private bool fLoadIsRunning = false;
+
         private bool OpenedFromControlPanel = false;
         private bool OpenedFromNakedCommandArg = false;
-        private bool OpenedFromFullScreenForm = false;
+        private bool OpenedFromScreenSaverForm = false;
         private bool OpenedFromOtherForm = false;
         Form CallingForm;                                           // The form that launched the Settings form, if any
 
@@ -59,10 +63,11 @@ namespace ScotSoft.PattySaver
         /// </summary>
         public Settings()
         {
-            InPreLoad = true;
+            fConstructorIsRunning = true;
             InitializeComponent();
             OpenedFromNakedCommandArg = true;
-            InPreLoad = false;
+            fConstructorIsRunning = false;
+            fConstructorHasCompleted = true;
         }
 
         /// <summary>
@@ -71,46 +76,115 @@ namespace ScotSoft.PattySaver
         /// <param name="hwnd">Handle to Window to make parent of Settings window.</param>
         public Settings(IntPtr hwnd)
         {
-            InPreLoad = true;
+            fConstructorIsRunning = true;
             InitializeComponent();
             OpenedFromControlPanel = true;
             ControlPanelPassedhWnd = hwnd;
-            InPreLoad = false;
-            // DebugUtils.Utils.ShowHideDebugWindow();
+            fConstructorIsRunning = false;
+            fConstructorHasCompleted = true;
         }
 
         /// <summary>
         /// Constructor called when Settings dialog is opened from one of our Forms.
         /// </summary>
-        /// <param name="LaunchedFromFullScreenForm">True if Settings opened from the FullScreen form.</param>
+        /// <param name="LaunchedFromScreenSaverForm">True if Settings opened from the FullScreen form.</param>
         /// <param name="callingForm">Form that opened the Settings dialog.</param>
-        public Settings(bool LaunchedFromFullScreenForm, Form callingForm)
+        public Settings(bool LaunchedFromScreenSaverForm, Form callingForm)
         {
-            InPreLoad = true;
-            if (LaunchedFromFullScreenForm && (callingForm == null))
+            fConstructorIsRunning = true;
+            if (LaunchedFromScreenSaverForm && (callingForm == null))
             {
                 throw new ArgumentNullException("If LaunchedFromFullScreenForm, callingForm cannot be null.");
             }
             InitializeComponent();
             CallingForm = callingForm;
-            OpenedFromFullScreenForm = LaunchedFromFullScreenForm;
-            OpenedFromOtherForm = !LaunchedFromFullScreenForm;
-            if (OpenedFromFullScreenForm && callingForm.WindowState == FormWindowState.Maximized) this.TopMost = true;
-            InPreLoad = false;
+            OpenedFromScreenSaverForm = LaunchedFromScreenSaverForm;
+            OpenedFromOtherForm = !LaunchedFromScreenSaverForm;
+            if (OpenedFromScreenSaverForm && callingForm.WindowState == FormWindowState.Maximized) this.TopMost = true;
+            fConstructorIsRunning = false;
+            fConstructorHasCompleted = true;
         }
 
         #endregion Constructors
 
         #region Form Events
 
+        /// <summary>
+        /// Override of WndProc, so we can detect WM_DESTROY messages sent to
+        /// our form and quit the Application.
+        /// </summary>
+        /// <param name="m">Message being sent to our Window.</param>
+        /// <remarks>When the Control Panel closes, if form is open, it does not
+        /// get a Close message. Instead we get sent a WM_DESTROY message. So we 
+        /// use that to close our form.</remarks>
+        protected override void WndProc(ref Message m)
+        {
+            // if we receive WM_DESTROY, close the form, where we'll quit the app
+            if (m.Msg == (int)0x0002)   // WM_DESTROY
+            {
+                this.Close();
+                return;
+            }
+
+            // if we didn't handle it, let the base class handle it
+            base.WndProc(ref m);
+        }
+
+
         private void Settings_Load(object sender, EventArgs e)
         {
-            InLoad = true;
+            fDebugTrace = fDebugOutput && fDebugAtTraceLevel;
 
+            bool fWillingToFightWithControlPanel = false;   // controls whether I'm willing to fight with window ownership code
+
+            // set flags
+            fLoadIsRunning = true;
+
+            // Trace
+            Logging.LogLineIf(fDebugTrace, "Settings_Load(): entered.");
+            
+            // set title bar
             Text = ProductName + " Settings";
 
+            // if we were opened from the control panel, make our form owned so that it dies with control panel
+            if (OpenedFromControlPanel && fWillingToFightWithControlPanel)
+            {
+                // Now we make our form a child window of the Control Panel window
+                // hWnd passed to us in the constructor.
+
+                // Set our window style to WS_CHILD, so that our window is 
+                // destroyed when parent window is destroyed. Start by getting
+                // the value which represents the current window style, and modifying
+                // that value to include WS_CHILD.
+                IntPtr ip = new IntPtr();
+                int index = (int)NativeMethods.WindowLongFlags.GWL_STYLE | 0x40000000;
+                NativeMethods.SetLastErrorEx(0, 0);
+                Logging.LogLineIf(fDebugTrace, "  Settings_Load(): About to call GetWindowLongPtr:");
+                ip = NativeMethods.GetWindowLongPtr(this.Handle, index);
+                int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                Logging.LogLineIf(fDebugTrace, "  Settings_Load(): GetWindowLongPtr returned IntPtr: " + ip.ToString() + ", GetLastError() returned: " + error.ToString());
+
+                // Now use that value to set our window style.
+                object ohRef = new object();
+                HandleRef hRef = new HandleRef(ohRef, this.Handle);
+                IntPtr ip2 = new IntPtr();
+                NativeMethods.SetLastErrorEx(0, 0);
+                Logging.LogLineIf(fDebugTrace, "  Settings_Load(): About to call SetWindowLongPtr:");
+                index = (int)NativeMethods.WindowLongFlags.GWL_STYLE;
+                ip2 = NativeMethods.SetWindowLongPtr(hRef, index, ip);
+                error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Load(): SetWindowLongPtr returned IntPtr: " + ip2.ToString() + ", GetLastError() returned: " + error.ToString());
+
+
+                Logging.LogLineIf(fDebugTrace, "  Settings_Load(): Calling SetParent to set new Parent for our form:");
+                NativeMethods.SetLastErrorEx(0, 0);
+                IntPtr newOldParent = NativeMethods.SetParent(this.Handle, ControlPanelPassedhWnd);
+                error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                Logging.LogLineIf(fDebugTrace, "  Settings_Load(): SetParent() returned IntPtr = " + newOldParent.ToString() + ", GetLastError() returned: " + error.ToString());
+            }
+
             // Setting the owner of this Form to the FullScreen Form allows us to call its methods
-            if (OpenedFromFullScreenForm) myParentFullScreenForm = (ScreenSaverForm)this.Owner;
+            if (OpenedFromScreenSaverForm) myParentFullScreenForm = (ScreenSaverForm)this.Owner;
 
             // If Settings dialog was opened by a form, center it on the calling form
             if (CallingForm != null)
@@ -139,12 +213,24 @@ namespace ScotSoft.PattySaver
 
             // If not opened from one of our forms, we need to load config data from disk.
             // If we are opened from one of our forms, we can assume that ConfigSettings has already been initialized
-            if (!OpenedFromFullScreenForm && !OpenedFromOtherForm)
+            if (!OpenedFromScreenSaverForm && !OpenedFromOtherForm)
             {
                 // if this fails to read from disk, it sets default values
                 SettingsInfo.InitializeAndLoadConfigSettingsFromStorage();
             }
 
+            // Now fill out the dialog values from the ConfigData
+            FillOutDialogFromConfigSettings();
+
+            // Light up the warning if necessary
+            TestForPictureFolderWarning();
+
+            fLoadIsRunning = false;
+            Logging.LogLineIf(fDebugTrace, "Settings_Load(): entered.");
+        }
+
+        private void FillOutDialogFromConfigSettings()
+        {
             // Using the ConfigSettings, fill out the dialog. First, the Folders list. 
             // "Checked" is stored in KeyValuePair.Key, path in KeyValuePair.Value.
             int currIndex = 0;
@@ -187,20 +273,16 @@ namespace ScotSoft.PattySaver
             _lastSelectedPath = SettingsInfo.SettingsDialogAddFolderLastSelectedPath;
 
             // Format the font dialog, then steal that info for desc label
-            if (OpenedFromFullScreenForm)
+            if (OpenedFromScreenSaverForm)
             {
                 FormatFontDialogFromDataFont();
                 UpdateFontDescriptionFromFontDlg();
             }
             else
             {
+                // TODO: hack. Figure out how to make it work when not opened from ScreenSaverForm
                 btnChooseFont.Enabled = false;
             }
-
-            // Light up the warning if necessary
-            TestForPictureFolderWarning();
-
-            InLoad = false;
         }
 
         private void Settings_FormClosed(object sender, FormClosedEventArgs e)
@@ -270,14 +352,19 @@ namespace ScotSoft.PattySaver
         // Choose Metadata button
         private void ChooseMetadata_Click(object sender, EventArgs e)
         {
+            debugOutputWindow = new ScrollingTextWindow(this);
+            debugOutputWindow.CopyTextToClipboardOnClose = true;
+            debugOutputWindow.ShowDisplay();
 
         }
 
         // Check Item in Folders List
         private void Folders_ItemCheck(object sender, ItemCheckEventArgs e)
         {
-            if (!InPreLoad && !InLoad)
+            if (fConstructorHasCompleted && fLoadHasCompleted)
             {
+                // TODO: make config settings non-static, and generate a clone. Compare the two when dialog closes.
+
                 fRebuildNeeded = true; // super conservative, but tracking if all checks in list are still the same when Save is clicked would be very hard...
 
                 if (UseOnlyChecked.Checked && (Folders.CheckedItems.Count < 2)) // If only one item, checking/unchecking can change message

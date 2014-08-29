@@ -131,7 +131,6 @@
             // 
             this.btnChooseMetadata.AutoSize = true;
             this.btnChooseMetadata.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-            this.btnChooseMetadata.Enabled = false;
             this.btnChooseMetadata.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnChooseMetadata.Location = new System.Drawing.Point(134, 302);
             this.btnChooseMetadata.Name = "btnChooseMetadata";
