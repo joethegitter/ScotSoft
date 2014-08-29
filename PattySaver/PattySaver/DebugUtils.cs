@@ -55,6 +55,8 @@ namespace ScotSoft.PattySaver.DebugUtils
         {
             if (consumer != null)
             {
+                if (!DestinationsContains(LogDestination.Buffer)) AddLogDestination(LogDestination.Buffer);
+
                 Consumers.Add(consumer);
 
                 if (strBuffer != null)

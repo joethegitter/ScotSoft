@@ -126,7 +126,7 @@ namespace ScotSoft.PattySaver
         /// So we close the app each time that occurs.</remarks>
         protected override void WndProc(ref Message m)
         {
-            bool fverbose = true;
+            bool fverbose = false;
             bool fblastme = fDebugTrace && fverbose;
 
             // #define WM_ACTIVATEAPP                  0x001C
@@ -140,7 +140,7 @@ namespace ScotSoft.PattySaver
                 Logging.LogLineIf(fblastme, "  --> " + m.Msg.ToString() + ": " + m.ToString());
             }
 
-            // if we receive WM_DESTROY, close the form, which should make us quit the app
+            // if we receive WM_DESTROY, close the form, where we'll quit the app
             if (m.Msg == (int)0x0002)   // WM_DESTROY
             {
                 this.Close();
@@ -303,7 +303,7 @@ namespace ScotSoft.PattySaver
 
         void tock_Tick(object sender, EventArgs e)
         {
-            // if this method has been called, it's because we want to the 
+            // if this method has been called, it's because we want the 
             // debug ouput window to pop up (ie, it can't be called directly
             // because there is no user UX - miniPreview mode, essentially)
 

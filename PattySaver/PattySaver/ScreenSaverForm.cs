@@ -219,6 +219,10 @@ namespace ScotSoft.PattySaver
                 fWasInSlideshowModeWhenDeactivated = true;
                 ourSlideshow.Exit();
             }
+            else
+            {
+                fWasInSlideshowModeWhenDeactivated = false;
+            }
 
             if (fScreenSaverWindowStyle && !fShowingDialog)   // don't exit ScreenSaverWindowStyle if we're just showing our own dialog
             {
@@ -248,6 +252,7 @@ namespace ScotSoft.PattySaver
             if (fWasInSlideshowModeWhenDeactivated)
             {
                 Logging.LogLineIf(fDebugTrace, "   ScreenSaverForm_Activated(): Entering ScreenSaverWindowStyle.");
+                fWasInSlideshowModeWhenDeactivated = false;
                 ourSlideshow.Start();
             }
 
@@ -501,9 +506,9 @@ namespace ScotSoft.PattySaver
             fShowingEmbeddedFileImage = false;
             fWaitingForFileToLoad = false;
 
-            // if the image is smaller than the picturebox, change zoom mode to center
-            if (pbMain.Image.PhysicalDimension.Height < pbMain.Height &&
-                pbMain.Image.PhysicalDimension.Width < pbMain.Width) pbMain.SizeMode = PictureBoxSizeMode.CenterImage;
+            // if the image is less than 1/3 of the picturebox both dimensions, change zoom mode to center
+            if ((pbMain.Image.PhysicalDimension.Height * 3 ) < pbMain.Height &&
+                (pbMain.Image.PhysicalDimension.Width * 3 ) < pbMain.Width) pbMain.SizeMode = PictureBoxSizeMode.CenterImage;
 
             Logging.LogLineIf(fDebugTrace, "pbMainPhoto_LoadCompleted(): exiting.");
         }
@@ -647,7 +652,7 @@ namespace ScotSoft.PattySaver
                 // Let's give ourselves a new line for every tag
                 stReturn = stReturn.Replace(";", Environment.NewLine + "  ");
                 if (fGot24) retVal += Environment.NewLine;
-                retVal += "Tags: " + Environment.NewLine + "  " + stReturn;
+                retVal += "Tags: " + Environment.NewLine + "   " + stReturn;
             }
 
             Logging.LogLineIf(fDebugTrace, "GetExtendedFileDetails(): exiting.");
