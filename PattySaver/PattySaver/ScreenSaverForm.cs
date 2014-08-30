@@ -1515,6 +1515,8 @@ namespace ScotSoft.PattySaver
 
             System.Diagnostics.Process.Start("explorer.exe", args);
 
+            
+
         }
 
         private void DoQuit()
