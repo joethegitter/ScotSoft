@@ -36,14 +36,14 @@ namespace ScotSoft.PattySaver.LaunchManager
         public static bool fPopUpDebugOutputWindowOnTimer = false;
         public static bool fOpenInScreenSaverMode = true;
         public static bool fNoArgMode = true;
-        public static bool UnofficialArgOverrideWindowed = false;
         public static bool fMaintainBuffer = false;
+        public static bool fRunFromScreenSaverStub = false;
 
         public static LaunchModality LaunchMode = LaunchModality.Undecided;
 
         public enum LaunchModality
         {
-            Configure = 10, Configure_WithWindowHandle = 11, Mini_Preview = 20, FullScreen = 30,
+            DT_Configure = 10, CP_Configure = 11, CP_MiniPreview = 20, ScreenSaver = 30, ScreenSaverWindowed = 40,
             /// <summary>
             /// Lauch mode has not yet been established.
             /// </summary>
@@ -71,7 +71,7 @@ namespace ScotSoft.PattySaver.LaunchManager
 
         public static LaunchModality GetLaunchModalityFromCmdLineArgs(string[] incoming, out long hwndTargetWindow, out int argsConsumed)
         {
-            // could be "/c:xxxxxxx" or "/c xxxxxxx", so we can't rely on GetCommandLineArgs() to break the cmdline correctly,
+            // could be "/c:xxxxxxx" or "/p xxxxxxx", so we can't rely on GetCommandLineArgs() to break the cmdline correctly,
             // as it separates values on spaces only
 
             // if no valid representation in first or first and second arg, launch in Configure mode (same as no args),
@@ -100,7 +100,7 @@ namespace ScotSoft.PattySaver.LaunchManager
                 Logging.LogLineIf(fDebugTrace, "   GetLaunchModalityFromCmdLineArgs(): No args, so Configure Mode.");
                 argsConsumed = 0;
                 Logging.LogLineIf(fDebugTrace, "GetLaunchModalityFromCmdLineArgs(): exiting.");
-                return Modes.LaunchModality.Configure;                  // no args = Configure
+                return Modes.LaunchModality.DT_Configure;                  // no args = Configure
             }
 
             dbgFirstArgVal = incoming[0];                                       // store away for debugging output
@@ -124,7 +124,7 @@ namespace ScotSoft.PattySaver.LaunchManager
                     argsConsumed = 0;
                     Logging.LogLineIf(fDebugTrace, "   GetLaunchModalityFromCmdLineArgs(): IsValidSingleOrDoubleArg() returned false, so Configure Mode.");
                     Logging.LogLineIf(fDebugTrace, "GetLaunchModalityFromCmdLineArgs(): exiting.");
-                    return LaunchModality.Configure;
+                    return LaunchModality.DT_Configure;
                 }
             }
 
@@ -160,7 +160,7 @@ namespace ScotSoft.PattySaver.LaunchManager
                     argsConsumed = 0;
                     Logging.LogLineIf(fDebugOutput, "   GetLaunchModalityFromCmdLineArgs(): IsValidBaseArg() returned false, so Configure Mode.");
                     Logging.LogLineIf(fDebugTrace, "GetLaunchModalityFromCmdLineArgs(): exiting.");
-                    return LaunchModality.Configure;
+                    return LaunchModality.DT_Configure;
                 }
             }
 
@@ -168,7 +168,7 @@ namespace ScotSoft.PattySaver.LaunchManager
             argsConsumed = 0;
             Logging.LogLineIf(fDebugOutput, "GetLaunchModalityFromCmdLineArgs(): Falling through to Configure, HOW THE HELL DID WE GET HERE??");
             Logging.LogLineIf(fDebugTrace, "GetLaunchModalityFromCmdLineArgs(): exiting.");
-            return LaunchModality.Configure;
+            return LaunchModality.DT_Configure;
         }
 
         private static LaunchModality GetModality(string baseArg, long subArg, bool HasSubArg, bool SubArgParsesToLong)
@@ -201,7 +201,7 @@ namespace ScotSoft.PattySaver.LaunchManager
                 if (HasSubArg && SubArgParsesToLong)
                 {
                     Logging.LogLineIf(fDebugTrace, "   GetModality(): returning Preview based on args: " + args);
-                    retVal = LaunchModality.Mini_Preview;
+                    retVal = LaunchModality.CP_MiniPreview;
                 }
                 else
                 {
@@ -231,12 +231,12 @@ namespace ScotSoft.PattySaver.LaunchManager
                     }
 #endif
                     Logging.LogLineIf(fDebugTrace, "   GetModality(): FullScreen requested with hwnd: " + args);
-                    retVal = LaunchModality.FullScreen;
+                    retVal = LaunchModality.ScreenSaver;
                 }
                 else
                 {
                     Logging.LogLineIf(fDebugTrace, "   GetModality(): returning FullScreen based on args: " + args);
-                    retVal = LaunchModality.FullScreen;
+                    retVal = LaunchModality.ScreenSaver;
                 }
             }
 
@@ -245,13 +245,13 @@ namespace ScotSoft.PattySaver.LaunchManager
                 if (!HasSubArg)
                 {
                     Logging.LogLineIf(fDebugTrace, "   GetModality(): returning Configure based on args: " + args);
-                    retVal = LaunchModality.Configure;
+                    retVal = LaunchModality.DT_Configure;
                 }
 
                 if (HasSubArg && SubArgParsesToLong)
                 {
                     Logging.LogLineIf(fDebugTrace, "   GetModality(): returning Configure_WithHandle based on args: " + args);
-                    retVal = LaunchModality.Configure_WithWindowHandle;
+                    retVal = LaunchModality.CP_Configure;
                 }
 
                 if (HasSubArg && !SubArgParsesToLong)
@@ -265,7 +265,7 @@ namespace ScotSoft.PattySaver.LaunchManager
                     }
 #endif
                     Logging.LogLineIf(fDebugOutput, "  * GetModality(): Falling through to Configure: Configure requested with bad hwnd: " + args);
-                    retVal = LaunchModality.Configure;
+                    retVal = LaunchModality.DT_Configure;
                 }
             }
 

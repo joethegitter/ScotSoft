@@ -13,13 +13,34 @@ namespace ScotSoft.PattySaver
 {
     static class EntryPoint
     {
-        public const string VSHOSTED = ".vshost"; // string appended to our exe basename by VS when hosted
-        public const string DBGWIN = ".dbgwin";   // appended by user to enable debug output window in non-hosted build
+        #region Data
 
+        // command line strings and file extensions
+        public const string VSHOSTED = ".vshost";                   // string appended to our exe basename by VS when hosted
+        public const string FROMSTUB = @"/scr";                     // tells us that our exe was launched from our .scr stub
+        public const string DBGWIN = @"/dbgwin";                    // pop up debugOutputWindow on timer after launch
+        public const string STARTBUFFER = @"/startbuffer";          // place debug output in string buffer from the moment of launch
+
+        // command line strings for launch modes
+        public const string M_CP_CONFIGURE = @"/cp_configure";      // open settings dlg in control panel
+        public const string M_CP_MINIPREVIEW = @"/cp_minipreview";  // open miniPreview form in control panel
+        public const string M_DT_CONFIGURE = @"/dt_configure";      // open settings dlg on desktop
+        public const string M_SCREENSAVER = @"/screensaver";        // open screenSaverForm
+        public const string M_NO_MODE = "no_mode";                  // open screenSaverForm in windowed mode
+
+        public static List<string> scrArgs = new List<string>() { M_CP_CONFIGURE, M_CP_MINIPREVIEW, M_DT_CONFIGURE, M_SCREENSAVER};
+
+        public const string OLDCONFIGURE = @"/c";                   //  same as M_DT_CONFIGURE - but we will ignore any window handles
+        public const string OLDSCREENSAVER = @"/s";                 //  same M_SCREENSAVER 
+
+        public static List<string> oldArgs = new List<string>() { OLDCONFIGURE, OLDSCREENSAVER };
+
+        // debug output controllers
         static bool fDebugOutput = true;                                    // controls whether any debug output is emitted
         static bool fDebugOutputAtTraceLevel = true;                        // impacts the granularity of debug output
         static bool fDebugTrace = fDebugOutput && fDebugOutputAtTraceLevel; // controls the granularity of debug output
 
+        #endregion Data
 
         /// <summary>
         /// The entry point for our application.
@@ -34,29 +55,31 @@ namespace ScotSoft.PattySaver
             Application.ThreadException += new ThreadExceptionEventHandler(Application_ThreadException);
             AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(CurrentDomain_UnhandledException);
 
+#if DEBUG
+            // Uncomment the following lines and in DEBUG builds 
+            // we'll put up this dialog every time we launch, showing command line 
+
+            //MessageBox.Show("CommandLine: " + Environment.CommandLine , Application.ProductName,
+            //    MessageBoxButtons.OK, MessageBoxIcon.Information);
+#endif
+
             // Scan command line for debug logging and debug hosting options and set them
             SetDebugOutputAndHostOptions();
 
             // Start logging
             Logging.LogLineIf(fDebugTrace, "Main(): entered.");
-            Logging.LogIf(fDebugTrace, "   Main(): Log Destinations are set to: ");
+            Logging.LogIf(fDebugTrace, "   Main(): Log Destination(s): ");
             foreach (Logging.LogDestination dest in Logging.LogDestinations)
             {
-                Logging.LogIf(fDebugTrace, dest.ToString() + "  ");
+                Logging.LogIf(fDebugTrace, dest.ToString() + "; ");
             }
             Logging.LogIf(fDebugTrace, Environment.NewLine);
             Logging.LogLineIf(fDebugOutput, "   Main(): CommandLine was: " + Environment.CommandLine);
 
-            // Set launch modes based on hosting options and command line arguments
-            if (Modes.fVSHOSTED)  // we're a process launched by Visual Studio 
-            {
-                Logging.LogLineIf(fDebugOutput, "   Main(): process is hosted by Visual Studio.");
-                LaunchVSHosted(mainArgs);
-            }
-            else
-            {
-                LaunchUnhosted(mainArgs);
-            }
+            if (Modes.fVSHOSTED) Logging.LogLineIf(fDebugOutput, "   Main(): process is hosted by Visual Studio.");
+
+            // Process command line args and launch accordingly
+            ProcessCommandLineAndLaunch(mainArgs);
 
             Logging.LogLineIf(fDebugTrace, "Main(): exiting.");
         }
@@ -77,109 +100,256 @@ namespace ScotSoft.PattySaver
             // Determine if we are running hosted by Visual Studio.
             Modes.fVSHOSTED = EnvArgs[0].ToLowerInvariant().Contains(VSHOSTED.ToLowerInvariant());
 
-            // Determine early if we need to maintain the debugOutput buffer
-            if (cmdLine.ToLowerInvariant().Contains("/usebuffer")) Modes.fMaintainBuffer = true;
+            foreach (string arg in EnvArgs)
+            {
+                // Determine if we were run from the screen saver stub
+                if (arg.ToLowerInvariant().Trim() == FROMSTUB)
+                {
+                    Modes.fRunFromScreenSaverStub = true;
+                }
 
-            // Determine if we need to put up the debug output window after a timer goes off
-            // (for cases where there is no user interaction available, ie miniControlPanelForm)
-            Modes.fPopUpDebugOutputWindowOnTimer = EnvArgs[0].ToLowerInvariant().Contains(DBGWIN.ToLowerInvariant());
-            if (Modes.fPopUpDebugOutputWindowOnTimer) Modes.fMaintainBuffer = true;
+                // Determine if we need to maintain the debugOutput buffer
+                if (arg.ToLowerInvariant().Trim() == STARTBUFFER)
+                {
+                    Modes.fMaintainBuffer = true;
+                }
+
+                // Determine if we need to put up the debug output window after a timer goes off
+                // (for cases where there is no user interaction available, ie miniControlPanelForm)
+                if (arg.ToLowerInvariant().Trim() == DBGWIN)
+                {
+                    Modes.fPopUpDebugOutputWindowOnTimer = true;
+                    Modes.fMaintainBuffer = true;
+                }
+            }
 
             // If there is a debugger available and logging, add it to the list of LogDestinations
             if (!Logging.CannotLog()) Logging.AddLogDestination(Logging.LogDestination.Default);
 
-            //// If necessary, add the buffer to the logging destination list
-            //if (Modes.fMaintainBuffer) Logging.AddLogDestination(Logging.LogDestination.Buffer);
-
-            // Because we cannot have command line arguments in .SCR mode, 
-            // Always add the buffer to destination list, until we figure that out
-            Logging.AddLogDestination(Logging.LogDestination.Buffer);
+            // If necessary, add the buffer to the logging destination list
+            if (Modes.fMaintainBuffer || Modes.fPopUpDebugOutputWindowOnTimer) Logging.AddLogDestination(Logging.LogDestination.Buffer);
         }
 
-
         /// <summary>
-        /// Parses command line options, sets modes, and runs the correct form, when process is hosted by Visual Studio,
+        /// Parses command line options, sets modes, and calls the Launch Code 
         /// </summary>
         /// <param name="mainArgs"></param>
-        static void LaunchVSHosted(string[] mainArgs)
+        static void ProcessCommandLineAndLaunch(string[] mainArgs)
         {
-            if (mainArgs.Length < 1)                                // There were no args: open in non-maximized state to help debugging
-            {
-                Logging.LogLineIf(fDebugOutput, @"   Main(): No cmdline args detected, so we'll open in normal window style (not ScreenSaverWindowStyle).");
-                LaunchManager.Modes.fNoArgMode = true;
-                LaunchManager.Modes.fOpenInScreenSaverMode = false;
-                ShowScreenSaver();
-                Application.Run();
-            }
-            else  // examine the args
-            {
-                // When VSHOSTED, we initially only examine the first argument to determine if it is official.
-                // For official args, we only look at the first two chars. If we determine that there is an arg
-                // present, but it's not official, then we use HandleUnofficialArgs(), which will re-examine ALL
-                // args found after any (or no) official args.
+            // The only args that this exe cares about are:
+            // 1. no mode args passed = M_NO_MODE (open screensaver in last remembered non-ScreenSaverStyle window, with no Slideshow)
+            // 2. /scr, which tells us that we were launched from the .scr stub,
+            //    and therefore need to respect arguments with window handles
+            // 3. /dt_configure (open settings dialog on desktop)
+            // 4. /c (same as dt_configure)
+            // 5. /cp_configure -windowHandle (open settings owned by control panel)
+            // 6. /cp_minipreview -windowHandle (put minipreview form in control panel)
+            // 7. /screensaver (run the default screen saver with slideshow)
+            // 8. /s (same as /screensaver)
+            // 9. /dbgwin (pop up the debugoutputwindow on a timer after launch)
+            // 10. any 'unofficial' args we process with SetDebugOutputAndHostOptions() and/or HandleUnofficialArgs()
 
-                // Get the first two 2 chars of first command line argument, ignore anything past
-                string arg = mainArgs[0].ToLowerInvariant().Trim().Substring(0, 2);
-                switch (arg)
+            // By the time we get to this method, the command line will have been scanned once by
+            // SetDebugOutputAndHostOptions(), and certain LaunchManager.Modes will have been set:
+            //     1. Modes.fRunFromScreenSaverStub
+            //     2. Modes.VSHOSTED
+            //     3. Modes.fPopUp
+            //     4. Modes.fMaintainBuffer
+
+            IntPtr hWnd = IntPtr.Zero;
+            string launchString = M_SCREENSAVER;
+         
+            // First, handle only the very rigorous "we were launched from the scr stub" case.
+            // Note "/scr" was already detected, and noted in Modes.fRunFromScreenSaverStub
+            int lastProcessedIndex = -1;
+            if (Modes.fRunFromScreenSaverStub)  // set for us by SetDebugOutputAndHostOptions()
+            {
+                // Logic:
+                // A. If /scr exists, it must be first
+                // B. If /scr, only one /scr arg allowed
+                // C. If /scr, one /scr arg required
+                // D. If /scr, validate that windowHandles parse to IntPtr 
+                // E. If /scr, non-scr args not allowed except /dbgwin
+
+                // first argument must be /scr
+                if ((mainArgs.Length > 0) && (mainArgs[0].ToLowerInvariant() != @"/scr"))
                 {
-                    case "/c":
-                        // Show the options dialog. First check to see if there are additional, 'private' arguments.
-                        Logging.LogLineIf(fDebugOutput, @"   Main(): /c detected, so we'll be opening only the Settings dialog, and then quitting.");
-                        LaunchManager.Modes.fNoArgMode = false;
-                        HandleUnofficialArguments(1);
-                        ShowSettings();
-                        Application.Run();
-                        break;
+                    throw new ArgumentException(@"CommandLine: /scr can only be the first argument.");
+                }
+                lastProcessedIndex = 0;
 
-                    case "/p":
-                        // In VSHOSTED mode, don't do anything for preview.
-                        Logging.LogLineIf(fDebugOutput, @"   Main(): /p detected; we don't support that in VSHOSTED mode, so we'll quit.");
-                        LaunchManager.Modes.fNoArgMode = false;
-                        Application.Exit();
-                        break;
+                // second arg must be one of four valid /scr-related arguments
+                if ((mainArgs.Length > 1) && !scrArgs.Contains(mainArgs[1].ToLowerInvariant()))
+                {
+                    throw new ArgumentException(@"CommandLine: /scr can only be followed by a valid /scr-related argument.");
+                }
+                lastProcessedIndex = 1;
 
-                    case "/s":
-                        // Open in FULLSCREEN, maximized, topmopst mode.  Not recommended for debugging.
-                        Logging.LogLineIf(fDebugOutput, @"   Main(): /s detected, so we'll open in ScreenSaverMode.  Not good for debugging.");
-                        LaunchManager.Modes.fNoArgMode = false;
-                        HandleUnofficialArguments(1);
-                        ShowScreenSaver();
-                        Application.Run();
-                        break;
+                // if second arg starts with cp_ it must be followed with a valid window handle
+                if (mainArgs[1].ToLowerInvariant() == M_CP_CONFIGURE || mainArgs[1].ToLowerInvariant() == M_CP_MINIPREVIEW)
+                {
+                    if ((mainArgs.Length > 2) && mainArgs[2].ToLowerInvariant().StartsWith("-"))
+                    {
+                        string subArg = mainArgs[2].ToLowerInvariant();
+                        string longCandidate = subArg.Substring(1);
+                        if (!String.IsNullOrEmpty(longCandidate))
+                        {
+                            long val;
+                            bool worked = long.TryParse(longCandidate, out val);
+                            if (worked)
+                            {
+                                hWnd = new IntPtr(val);
+                            }
+                            else  // bad parse
+                            {
+                                throw new ArgumentException(@"CommandLine: invalid window handle passed: " + longCandidate);
+                            }
+                        }
+                        else   // null or empty
+                        {
+                            throw new ArgumentException(@"CommandLine: invalid window handle passed.");
+                        }
+                    }
+                    else  // missing required sub argument
+                    {
+                        throw new ArgumentException(@"CommandLine: /cp_ argument missing required subargument.");
+                    }
+                    lastProcessedIndex = 2;
+                }
 
-                    default:
-                        // There were no "official" args, so this must be an unofficial arg, and possibly one of many
-                        // We'll open in NoArg mode for debugging
-                        Logging.LogLineIf(fDebugOutput, @"   Main(): No 'Official' args recognized, but args passed. Open in normal window style, try to execute the 'non-official' args.");
-                        LaunchManager.Modes.fNoArgMode = true;
-                        LaunchManager.Modes.fOpenInScreenSaverMode = false;
-                        HandleUnofficialArguments(0);
-                        ShowScreenSaver();
-                        Application.Run();
-                        break;
+                // at this point, lastProcessedIndex is either 1 or 2. The only valid argument past here is /dgbwin,
+                // which will already have been detected, but not validated in position. It is only allowed in index
+                // 2 or 3.
+                if (Modes.fPopUpDebugOutputWindowOnTimer)  // this was detected earlier
+                {
+                    if (mainArgs[lastProcessedIndex + 1].ToLowerInvariant() != DBGWIN)
+                    {
+                        throw new ArgumentException(@"CommandLine: /dbgwin detected but not at valid index.");
+                    }
+                    lastProcessedIndex++;
+                }
+
+                // starting at lastProcessedIndex, there should be NO arguments
+                if ((mainArgs.Length - 1) > lastProcessedIndex)
+                {
+                    throw new ArgumentException(@"CommandLine: too many arguments past /scr.");
+                }
+
+                // by this point, our mode is in mainArgs[1] and hWnd is either IntPtr.Zero or a numerically validated hWnd.
+                launchString = mainArgs[1].ToLowerInvariant();
+            }
+            else // we were not launched from .scr stub.
+            {
+                // So valid args are:
+                // - no args
+                // - one of the four scrArgs
+                //   - and possibly one of two subArgs
+                // - one of the old args, which we'll map to a scrArg
+                // - /dbgwin, which we will already have detected
+
+                // Apply some rules
+                // 1. acceptable: no scrArg, no oldArg
+                // 2. if any scrArg, only one allowed
+                // 2. if any scrArg, no oldArgs allowed
+                // 3. if no scrArg, only one oldArg allowed
+                // 4. if scrArg or oldArg exists, it must be first
+                // 5. if scrArg exists, any subArg must be second
+
+                launchString = M_NO_MODE;
+                int countOfscrArgsDetected = 0;
+                int countOfoldArgsDetected = 0;
+                if (mainArgs.Length > 0)
+                {
+                    foreach (string arg in mainArgs)
+                    {
+                        string testMe = arg.ToLowerInvariant().Trim();
+                        if (scrArgs.Contains(testMe)) countOfscrArgsDetected++;
+                        if (oldArgs.Contains(testMe)) countOfoldArgsDetected++;
+
+                        if (testMe == M_DT_CONFIGURE) launchString = M_DT_CONFIGURE;
+                        if (testMe == M_SCREENSAVER) launchString = M_SCREENSAVER;
+                        if (testMe == OLDCONFIGURE) launchString = M_DT_CONFIGURE;
+                        if (testMe == OLDSCREENSAVER) launchString = M_SCREENSAVER;
+                        if (testMe == M_CP_CONFIGURE) launchString = M_CP_CONFIGURE;
+                        if (testMe == M_CP_MINIPREVIEW) launchString = M_CP_MINIPREVIEW;
+                    }
+
+                    // no multiple modes or mixing old and new
+                    if (countOfoldArgsDetected > 1 ||
+                        countOfscrArgsDetected > 1 ||
+                        (countOfoldArgsDetected + countOfscrArgsDetected > 1))
+                    {
+                        throw new ArgumentException("CommandLine: only one scrArg allowed, or only one oldArg allowed, or scrArg and oldArg cannot be combined.");
+                    }
+
+                    // mode must be first argument; so if we have a mode, compare it to first argument
+                    if (launchString != M_NO_MODE)
+                    {
+                        if (mainArgs[0].ToLowerInvariant().Trim() != launchString)
+                        {
+                            // this may be because of old vs new args. check that first
+                            if ((mainArgs[0].ToLowerInvariant().Trim() == OLDCONFIGURE && launchString == M_DT_CONFIGURE) ||
+                                (mainArgs[0].ToLowerInvariant().Trim() == OLDSCREENSAVER && launchString == M_SCREENSAVER)
+                                )
+                            {
+                                // do nothing, that's expected
+                            }
+                            else
+                            {
+                                // mode argument was out of order.  Reject.
+                                throw new ArgumentException("CommandLine: any mode argument must be the first argument.");
+                            }
+                        }
+                    }
+
+                    // require and validate window handles
+                    if ((launchString == M_CP_CONFIGURE) || (launchString == M_CP_MINIPREVIEW))
+                    {
+                        if ((mainArgs.Length > 2) && mainArgs[2].ToLowerInvariant().StartsWith("-"))
+                        {
+                            string subArg = mainArgs[1].ToLowerInvariant().Trim();
+                            string longCandidate = subArg.Substring(1);
+                            if (!String.IsNullOrEmpty(longCandidate))
+                            {
+                                long val;
+                                bool worked = long.TryParse(longCandidate, out val);
+                                if (worked)
+                                {
+                                    hWnd = new IntPtr(val);
+                                }
+                                else  // bad parse
+                                {
+                                    throw new ArgumentException(@"CommandLine: invalid window handle passed: " + longCandidate);
+                                }
+                            }
+                            else   // null or empty
+                            {
+                                throw new ArgumentException(@"CommandLine: invalid window handle passed.");
+                            }
+                        }
+                        else  // missing required sub argument
+                        {
+                            throw new ArgumentException(@"CommandLine: /cp_ argument missing required subargument.");
+                        }
+                    }
+                    // by this point, our mode is in launchMode and hWnd is either IntPtr.Zero or a numerically validated hWnd.
                 }
             }
-        }
 
+            // Now map launchMode string to LaunchMode
+            LaunchManager.Modes.LaunchModality LaunchMode = Modes.LaunchModality.Undecided;
 
-        /// <summary>
-        /// Parses command line options, sets modes, and calls the Launch Code when process is NOT hosted by Visual Studio,
-        /// </summary>
-        /// <param name="mainArgs"></param>
-        static void LaunchUnhosted(string[] mainArgs)
-        {
-            int publicArgsConsumed = 0;
-            long toBeHwnd = (long)(-1);
-            Modes.LaunchModality mode = Modes.LaunchModality.Undecided;
-
-            // Determine which mode we should launch in from 'official' arguments
-            mode = Modes.GetLaunchModalityFromCmdLineArgs(mainArgs, out toBeHwnd, out publicArgsConsumed);
+            if (launchString == M_NO_MODE) LaunchMode = Modes.LaunchModality.ScreenSaverWindowed;
+            if (launchString == M_CP_CONFIGURE) LaunchMode = Modes.LaunchModality.CP_Configure;
+            if (launchString == M_CP_MINIPREVIEW) LaunchMode = Modes.LaunchModality.CP_MiniPreview;
+            if (launchString == M_DT_CONFIGURE) LaunchMode = Modes.LaunchModality.DT_Configure;
+            if (launchString == M_SCREENSAVER) LaunchMode = Modes.LaunchModality.ScreenSaver;
 
             // Handle any 'unofficial' arguments
-            HandleUnofficialArguments(publicArgsConsumed);
+            HandleUnofficialArguments(mainArgs);
 
             // Now launch us
-            Launch(mode, toBeHwnd);
+            Launch(LaunchMode, hWnd);
         }
 
 
@@ -188,30 +358,19 @@ namespace ScotSoft.PattySaver
         /// </summary>
         /// <param name="countOfOfficialArgsConsumed">Number of arguments at beginning of command line to ignore, as they were used as 'official' args.</param>
         /// <remarks>For each unoficial argument understood, various state variables will be set, for later consumption.</remarks>
-        private static void HandleUnofficialArguments(int countOfOfficialArgsConsumed)
+        private static void HandleUnofficialArguments(string [] mainArgs)
         {
-            // TODO: Turns out that a .SCR can't receive any Unofficial command line arguments.
-
             // TODO: rewrite to actually parse the args from System.Environment.CommandLine.  We're being incredibly lazy here.
-
-            // Remember to check to see if countOfOfficialArgsConsumed consumed = or > actual count of args, etc
-
             // Remember that /usebuffer will have been consumed already, so disregard it
-
-            if (System.Environment.CommandLine.Contains(@"/window"))
-            {
-                Modes.UnofficialArgOverrideWindowed = true;
-                Modes.fOpenInScreenSaverMode = false;
-            }
         }
 
 
         /// <summary>
-        /// Handles "real" launch (as opposed to VSHOSTED mode).
+        /// Opens the necessary windows.
         /// </summary>
         /// <param name="LaunchMode"></param>
-        /// <param name="toBeHwnd"></param>
-        static void Launch(Modes.LaunchModality LaunchMode, long toBeHwnd)
+        /// <param name="hWnd"></param>
+        static void Launch(LaunchManager.Modes.LaunchModality LaunchMode, IntPtr hWnd)
         {
             Logging.LogLineIf(fDebugTrace, "Launch(): entered.");
 
@@ -233,35 +392,35 @@ namespace ScotSoft.PattySaver
             // Store away LaunchMode for later reference
             Modes.LaunchMode = LaunchMode;
 
-            // this overrides all other launch modes
-            if (Modes.UnofficialArgOverrideWindowed)
-            {
-                LaunchMode = Modes.LaunchModality.FullScreen;
-            }
-
             // Based on Launch Mode, show the correct window in the correct place
-            if (LaunchMode == Modes.LaunchModality.Configure)
+            if (LaunchMode == Modes.LaunchModality.DT_Configure)
             {
                 ShowSettings();
                 Logging.LogLineIf(fDebugTrace, "   Launch(): calling Application.Run().");
                 Application.Run();
             }
-            else if (LaunchMode == Modes.LaunchModality.Configure_WithWindowHandle)
+            else if (LaunchMode == Modes.LaunchModality.CP_Configure)
             {
-                IntPtr cpWndHandle = new IntPtr(toBeHwnd);
-                ShowSettings(cpWndHandle);
+                ShowSettings(hWnd);
                 Application.Run();
             }
-            else if (LaunchMode == Modes.LaunchModality.FullScreen)
+            else if (LaunchMode == Modes.LaunchModality.ScreenSaver)
             {
+                Modes.fOpenInScreenSaverMode = true;
                 ShowScreenSaver();
                 Logging.LogLineIf(fDebugTrace, "   Launch(): calling Application.Run().");
                 Application.Run();
             }
-            else if (LaunchMode == Modes.LaunchModality.Mini_Preview)
+            else if (LaunchMode == Modes.LaunchModality.ScreenSaverWindowed)
             {
-                IntPtr previewWndHandle = new IntPtr(toBeHwnd);
-                ShowMiniPreview(previewWndHandle);
+                Modes.fOpenInScreenSaverMode = false;
+                ShowScreenSaver();
+                Logging.LogLineIf(fDebugTrace, "   Launch(): calling Application.Run().");
+                Application.Run();
+            }
+            else if (LaunchMode == Modes.LaunchModality.CP_MiniPreview)
+            {
+                ShowMiniPreview(hWnd);
                 Logging.LogLineIf(fDebugTrace, "   Launch(): calling Application.Run().");
                 Application.Run();
             }
