@@ -130,6 +130,15 @@ namespace ScotSoft.PattySaver
             base.WndProc(ref m);
         }
 
+        private void Settings_HandleCreated(object sender, EventArgs e)
+        {
+            Logging.LogLineIf(fDebugTrace, "Settings_HandleCreated(): entered.");
+
+            Logging.LogLineIf(fDebugTrace, "Settings_HandleCreated(): exiting.");
+        }
+
+        
+
 
         private void Settings_Load(object sender, EventArgs e)
         {
@@ -226,6 +235,7 @@ namespace ScotSoft.PattySaver
             TestForPictureFolderWarning();
 
             fLoadIsRunning = false;
+
             Logging.LogLineIf(fDebugTrace, "Settings_Load(): entered.");
         }
 

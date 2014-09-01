@@ -9,22 +9,23 @@ Here is how our overall architecture now works
 To see explanation of the architecture of our main executable, jump down to 
 Architecture of Our Main Executable.)
 
-1. We have a very small stub screen saver (PattySvrX.scr). This goes in the 
-   System32 directory. 
+1. We have a very small stub screen saver (PattySaver.scr). This goes in the 
+   System32 directory. This stub is built from the PattSvrX project, and
+   the file is renamed in a postbuild event.
 
 2. We now have an executable (PattySaver.exe). This also goes into the System32 
    directory. For desktop/app use, point a shortcut at PattSaver.exe in the 
-   System32 directory.
+   System32 directory. This exe is built from the PattySaver project.
 
 3. The stub is tiny, and only does the following:
    a. is launched by Windows, and receives command line arguments Windows uses
    b. converts those parameters into BETTER parameters
    c. launches our exe with those new parameters. Those parameters are now:
 
-   /scr /<mode> [-windowHandle] [/dgbwin]
+   /scr /<mode> [-windowHandle] [[/popdgbwin] | [/startbuffer]]
 
    Where:
-     /scr is required and tells us we were launched by the stub;
+     /scr is required and tells the exe it was launched by the stub;
      <mode> is one of: 
         /screensaver    - open screensaver maximized/topmost/slideshow on
         /dt_configure   - open Settings dlg to the desktop
@@ -33,10 +34,30 @@ Architecture of Our Main Executable.)
 
      [-windowHandle] is only required for /cp_configure or /cp_minipreview
 
-     [/dbgwin] tells the executable to open our debugOutputWindow on a timer 
-     after launch.  Making /dbgwin happen actually requires renaming 
-     PattSvrX.scr to PattySvrX.dgbwin.scr. I can explain how to use it later 
-     if you want to use it.
+     [/popdbgwin] is optional and tells the executable to open our 
+               debugOutputWindow on a timer after launch. 
+
+     [/startbuffer] is optional and tells the executable to begin storing 
+                    debug output in a string buffer immediately after
+                    launch, so that it is available for viewing in the
+                    debugOutputWindow later.
+
+Notes: /popdbgwin and /startbuffer will never appear in the same command
+line.  If /popdbgwin is passed, /startbuffer is assumed, but not vice versa.
+
+/popdbgwin will ONLY appear in the command line output if 
+(a) user held down shift key when .scr was launched or
+(b) user renamed .scr file to PattySaver.dbgwin.scr.
+
+/startbuffer will ONLY appear in the command line if 
+(a) user held down CONTROL key when .scr was launched or
+(b) user renamed .scr file to PattySaver.startbuffer.scr.
+
+This file rename does not interfere with any functionality.
+
+For debug purposes, if you hold down ALT when the .scr launches,
+the .scr will put up a message box showing the command line it 
+received, and the command line it is passing to the exe.
 
 4. The executable can now handle the following parameters:
    
@@ -52,27 +73,27 @@ Architecture of Our Main Executable.)
    /s or /screensaver               - open maximized/topmost/slideshow running
 
    If none of the above modes are specified, our executable opens "windowed" - 
-   to last remembered window size and position, slideshow off. So, a shortcut 
-   with no mode parameters would open this way.
+   to the last remembered window size and position, slideshow off. So, a 
+   shortcut with no mode parameters would open windowed.
+
+   Unofficial args:
+   /popdbgwin     - tells us to pop up the debugOutputWindow on a timer
+                    after the exe is launched. This only works for the 
+                    miniControlPanelForm, which has no way for the user to
+                    summon the window interactively.
 
    /startbuffer     - tells us to put all debugOutput into a string buffer, 
                     so that when we open our debugOutput window, we can see 
                     all the debug output back to the moment of launch. If 
                     /dbgwin is received, /startbuffer is forced to true.
 
-5. Do NOT put /scr on a command line from a shortcut! Things may explode.
-
-6. We now have a fully functioning debugOutputWindow that can be used from 
+5. We now have a fully functioning debugOutputWindow that can be used from 
    retail builds, debug builds not running in the debugger, etc.
 
    You can open this window from the Screen Saver window by hitting F9. 
    Hitting F9 again hides/shows it. When you close the debugOutputWindow, 
    it is destroyed, and hitting F9 again recreates it.
 
-If you want to see debug output when running the miniPreview form in the 
-control panel, change the name of PattSvrX.scr to PattySvrX.dbgwin.scr. 
-When the control panel opens, wait.  The debugOutputWindow will pop up 
-after about 10 seconds.
 
 
 Architecture of our Main Executable

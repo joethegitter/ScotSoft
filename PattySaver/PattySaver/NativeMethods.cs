@@ -161,6 +161,10 @@ namespace ScotSoft.PattySaver
         [DllImport("shlwapi.dll", SetLastError = true, CharSet = CharSet.Auto)]
         internal static extern bool PathCompactPathEx([Out] StringBuilder pszOut, string szPath, int cchMax, int dwFlags);
 
+        [DllImport("user32.dll", EntryPoint="FindWindow", SetLastError = true)]
+        internal static extern IntPtr FindWindowByCaption(IntPtr ZeroOnly, string lpWindowName);
+
+
         public static string CompactPath(string longPathName, int wantedLength)
         {
             // NOTE: You need to create the builder with the required capacity before calling function.
@@ -168,6 +172,24 @@ namespace ScotSoft.PattySaver
             StringBuilder sb = new StringBuilder(wantedLength + 1);
             PathCompactPathEx(sb, longPathName, wantedLength + 1, 0);
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Wrapper class so that we can return an IWin32Window given a hwnd
+        /// </summary>
+        public class WindowWrapper : System.Windows.Forms.IWin32Window
+        {
+            public WindowWrapper(IntPtr handle)
+            {
+                _hwnd = handle;
+            }
+
+            public IntPtr Handle
+            {
+                get { return _hwnd; }
+            }
+
+            private IntPtr _hwnd;
         }
 
         public enum WindowLongFlags : int

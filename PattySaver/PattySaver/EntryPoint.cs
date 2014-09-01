@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Threading;
+using System.Runtime.InteropServices;
 
 using ScotSoft.PattySaver;
 using ScotSoft.PattySaver.LaunchManager;
@@ -18,7 +19,7 @@ namespace ScotSoft.PattySaver
         // command line strings and file extensions
         public const string VSHOSTED = ".vshost";                   // string appended to our exe basename by VS when hosted
         public const string FROMSTUB = @"/scr";                     // tells us that our exe was launched from our .scr stub
-        public const string DBGWIN = @"/dbgwin";                    // pop up debugOutputWindow on timer after launch
+        public const string POPDBGWIN = @"/popdbgwin";                    // pop up debugOutputWindow on timer after launch
         public const string STARTBUFFER = @"/startbuffer";          // place debug output in string buffer from the moment of launch
 
         // command line strings for launch modes
@@ -116,7 +117,7 @@ namespace ScotSoft.PattySaver
 
                 // Determine if we need to put up the debug output window after a timer goes off
                 // (for cases where there is no user interaction available, ie miniControlPanelForm)
-                if (arg.ToLowerInvariant().Trim() == DBGWIN)
+                if (arg.ToLowerInvariant().Trim() == POPDBGWIN)
                 {
                     Modes.fPopUpDebugOutputWindowOnTimer = true;
                     Modes.fMaintainBuffer = true;
@@ -146,7 +147,7 @@ namespace ScotSoft.PattySaver
             // 6. /cp_minipreview -windowHandle (put minipreview form in control panel)
             // 7. /screensaver (run the default screen saver with slideshow)
             // 8. /s (same as /screensaver)
-            // 9. /dbgwin (pop up the debugoutputwindow on a timer after launch)
+            // 9. /popdbgwin (pop up the debugoutputwindow on a timer after launch)
             // 10. any 'unofficial' args we process with SetDebugOutputAndHostOptions() and/or HandleUnofficialArgs()
 
             // By the time we get to this method, the command line will have been scanned once by
@@ -169,19 +170,21 @@ namespace ScotSoft.PattySaver
                 // B. If /scr, only one /scr arg allowed
                 // C. If /scr, one /scr arg required
                 // D. If /scr, validate that windowHandles parse to IntPtr 
-                // E. If /scr, non-scr args not allowed except /dbgwin
+                // E. If /scr, non-scr args not allowed except /popdbgwin or /startbuffer
 
                 // first argument must be /scr
                 if ((mainArgs.Length > 0) && (mainArgs[0].ToLowerInvariant() != @"/scr"))
                 {
-                    throw new ArgumentException(@"CommandLine: /scr can only be the first argument.");
+                    throw new ArgumentException(@"CommandLine: /scr can only be the first argument." + 
+                    Environment.NewLine + Environment.CommandLine);
                 }
                 lastProcessedIndex = 0;
 
                 // second arg must be one of four valid /scr-related arguments
                 if ((mainArgs.Length > 1) && !scrArgs.Contains(mainArgs[1].ToLowerInvariant()))
                 {
-                    throw new ArgumentException(@"CommandLine: /scr can only be followed by a valid /scr-related argument.");
+                    throw new ArgumentException(@"CommandLine: /scr can only be followed by a valid /scr-related argument." +
+                    Environment.NewLine + Environment.CommandLine);
                 }
                 lastProcessedIndex = 1;
 
@@ -202,37 +205,60 @@ namespace ScotSoft.PattySaver
                             }
                             else  // bad parse
                             {
-                                throw new ArgumentException(@"CommandLine: invalid window handle passed: " + longCandidate);
+                                throw new ArgumentException(@"CommandLine: invalid window handle passed: " + longCandidate +
+                                    Environment.NewLine + Environment.CommandLine);
                             }
                         }
                         else   // null or empty
                         {
-                            throw new ArgumentException(@"CommandLine: invalid window handle passed.");
+                            throw new ArgumentException(@"CommandLine: invalid window handle passed." +
+                                Environment.NewLine + Environment.CommandLine);
                         }
                     }
                     else  // missing required sub argument
                     {
-                        throw new ArgumentException(@"CommandLine: /cp_ argument missing required subargument.");
+                        throw new ArgumentException(@"CommandLine: /cp_ argument missing required subargument." +
+                            Environment.NewLine + Environment.CommandLine);
                     }
                     lastProcessedIndex = 2;
                 }
 
-                // at this point, lastProcessedIndex is either 1 or 2. The only valid argument past here is /dgbwin,
-                // which will already have been detected, but not validated in position. It is only allowed in index
-                // 2 or 3.
+                // at this point, lastProcessedIndex is either 1 or 2. The only valid arguments past here are 
+                // either /dgbwin or /startbuffer, which will already have been detected, but not validated
+                // in position. They are only allowed in index 2 or 3.
+
+                // validate StartBuffer
+                bool DidProcess = false;
+                if (Modes.fMaintainBuffer)  // this was detected earlier
+                {
+                    if ((mainArgs[lastProcessedIndex + 1].ToLowerInvariant() != POPDBGWIN) &&
+                        (mainArgs[lastProcessedIndex + 1].ToLowerInvariant() != STARTBUFFER))
+                    {
+                        string invalid = POPDBGWIN + " or " + STARTBUFFER;
+                        throw new ArgumentException(@"CommandLine:" + invalid + " detected but not at valid index." +
+                            Environment.NewLine + Environment.CommandLine);
+                    }
+                    DidProcess = true; ;
+                }
+
+                // validate POPDBGWIN
                 if (Modes.fPopUpDebugOutputWindowOnTimer)  // this was detected earlier
                 {
-                    if (mainArgs[lastProcessedIndex + 1].ToLowerInvariant() != DBGWIN)
+                    if (mainArgs[lastProcessedIndex + 1].ToLowerInvariant() != POPDBGWIN)
                     {
-                        throw new ArgumentException(@"CommandLine: /dbgwin detected but not at valid index.");
+                        throw new ArgumentException(@"CommandLine:" + POPDBGWIN + " detected but not at valid index." +
+                            Environment.NewLine + Environment.CommandLine);
                     }
-                    lastProcessedIndex++;
+                    DidProcess = true; ;
                 }
+
+                if (DidProcess) lastProcessedIndex++;
 
                 // starting at lastProcessedIndex, there should be NO arguments
                 if ((mainArgs.Length - 1) > lastProcessedIndex)
                 {
-                    throw new ArgumentException(@"CommandLine: too many arguments past /scr.");
+                    throw new ArgumentException(@"CommandLine: too many arguments past /scr." +
+                        Environment.NewLine + Environment.CommandLine);
                 }
 
                 // by this point, our mode is in mainArgs[1] and hWnd is either IntPtr.Zero or a numerically validated hWnd.
@@ -245,7 +271,7 @@ namespace ScotSoft.PattySaver
                 // - one of the four scrArgs
                 //   - and possibly one of two subArgs
                 // - one of the old args, which we'll map to a scrArg
-                // - /dbgwin, which we will already have detected
+                // - /popdbgwin, which we will already have detected
 
                 // Apply some rules
                 // 1. acceptable: no scrArg, no oldArg
@@ -279,7 +305,8 @@ namespace ScotSoft.PattySaver
                         countOfscrArgsDetected > 1 ||
                         (countOfoldArgsDetected + countOfscrArgsDetected > 1))
                     {
-                        throw new ArgumentException("CommandLine: only one scrArg allowed, or only one oldArg allowed, or scrArg and oldArg cannot be combined.");
+                        throw new ArgumentException("CommandLine: only one scrArg allowed, or only one oldArg allowed, or scrArg and oldArg cannot be combined." +
+                            Environment.NewLine + Environment.CommandLine);
                     }
 
                     // mode must be first argument; so if we have a mode, compare it to first argument
@@ -297,7 +324,8 @@ namespace ScotSoft.PattySaver
                             else
                             {
                                 // mode argument was out of order.  Reject.
-                                throw new ArgumentException("CommandLine: any mode argument must be the first argument.");
+                                throw new ArgumentException("CommandLine: any mode argument must be the first argument." +
+                                    Environment.NewLine + Environment.CommandLine);
                             }
                         }
                     }
@@ -319,17 +347,20 @@ namespace ScotSoft.PattySaver
                                 }
                                 else  // bad parse
                                 {
-                                    throw new ArgumentException(@"CommandLine: invalid window handle passed: " + longCandidate);
+                                    throw new ArgumentException(@"CommandLine: invalid window handle passed: " + longCandidate +
+                                        Environment.NewLine + Environment.CommandLine);
                                 }
                             }
                             else   // null or empty
                             {
-                                throw new ArgumentException(@"CommandLine: invalid window handle passed.");
+                                throw new ArgumentException(@"CommandLine: invalid window handle passed." +
+                                    Environment.NewLine + Environment.CommandLine);
                             }
                         }
                         else  // missing required sub argument
                         {
-                            throw new ArgumentException(@"CommandLine: /cp_ argument missing required subargument.");
+                            throw new ArgumentException(@"CommandLine: /cp_ argument missing required subargument." +
+                                    Environment.NewLine + Environment.CommandLine);
                         }
                     }
                     // by this point, our mode is in launchMode and hWnd is either IntPtr.Zero or a numerically validated hWnd.
@@ -482,7 +513,24 @@ namespace ScotSoft.PattySaver
         static void ShowSettings(IntPtr hwnd)
         {
             Form settings = new Settings(hwnd);
-            settings.Show();
+            ScrollingTextWindow debugOutputWindow = new ScrollingTextWindow(settings);
+
+            // Find the Window whose caption says "Screen Saver Settings"
+            Logging.LogLineIf(fDebugTrace, "  ShowSettings(): Calling FindWindowByCaption():");
+            NativeMethods.SetLastErrorEx(0, 0);
+            IntPtr daddy = NativeMethods.FindWindowByCaption(IntPtr.Zero, "Screen Saver Settings");
+            int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+            Logging.LogLineIf(fDebugTrace, "  ShowSettings(): FindWindowByCaption() returned IntPtr = " + daddy.ToString() + ", GetLastError() returned: " + error.ToString());
+
+            //Logging.LogLineIf(fDebugTrace, "  ShowSettings(): Calling SetParent to set new Parent for our form:");
+            //NativeMethods.SetLastErrorEx(0, 0);
+            //IntPtr newOldParent = NativeMethods.SetParent(settings.Handle, hwnd);
+            //error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+            //Logging.LogLineIf(fDebugTrace, "  ShowSettings(): SetParent() returned IntPtr = " + newOldParent.ToString() + ", GetLastError() returned: " + error.ToString());
+
+            NativeMethods.WindowWrapper ww = new NativeMethods.WindowWrapper(daddy);
+            settings.Visible = false;
+            settings.ShowDialog(ww);
         }
 
 
@@ -493,6 +541,52 @@ namespace ScotSoft.PattySaver
         static void ShowMiniPreview(IntPtr hwnd)
         {
             Form miniprev = new miniControlPanelForm(hwnd);
+
+            // Set miniprev's window style to WS_CHILD, so that it window is 
+            // destroyed when parent window is destroyed. Start by getting
+            // the value which represents the current window style, and modifying
+            // that value to include WS_CHILD.
+            // TODO: should probably also be clearing WS_POPUP
+            IntPtr ip = new IntPtr();
+            int index = (int)NativeMethods.WindowLongFlags.GWL_STYLE | 0x40000000;
+            NativeMethods.SetLastErrorEx(0, 0);
+            Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): About to call GetWindowLongPtr:");
+            ip = NativeMethods.GetWindowLongPtr(miniprev.Handle, index);
+            int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+            Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): GetWindowLongPtr returned IntPtr: " + ip.ToString() + ", GetLastError() returned: " + error.ToString());
+
+            // Now use that value to set the new window style.
+            object ohRef = new object();
+            HandleRef hRef = new HandleRef(ohRef, miniprev.Handle);
+            IntPtr ip2 = new IntPtr();
+            NativeMethods.SetLastErrorEx(0, 0);
+            Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): About to call SetWindowLongPtr:");
+            index = (int)NativeMethods.WindowLongFlags.GWL_STYLE;
+            ip2 = NativeMethods.SetWindowLongPtr(hRef, index, ip);
+            error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+            Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): SetWindowLongPtr returned IntPtr: " + ip2.ToString() + ", GetLastError() returned: " + error.ToString());
+
+            // Now make the passed hWnd miniprev's parent window.
+            Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Calling SetParent to set new Parent for our form:");
+            NativeMethods.SetLastErrorEx(0, 0);
+            IntPtr newOldParent = NativeMethods.SetParent(miniprev.Handle, hwnd);
+            error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+            Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): SetParent() returned IntPtr = " + newOldParent.ToString() + ", GetLastError() returned: " + error.ToString());
+
+            // Set miniprev window size to the size of our window's new parent.
+            // First, get that size.
+            System.Drawing.Rectangle ParentRect = new System.Drawing.Rectangle();
+            NativeMethods.SetLastErrorEx(0, 0);
+            Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Calling GetClientRect to get a new rect for our form:");
+            bool fSuccecss = NativeMethods.GetClientRect(hwnd, ref ParentRect);
+            Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): GetClientRect() returned bool = " + fSuccecss + ", GetLastError() returned: " + error.ToString());
+
+            // Set our size to new rect and location at (0, 0)
+            Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Setting Size and Position:");
+            miniprev.Size = ParentRect.Size;
+            miniprev.Location = new System.Drawing.Point(0, 0);
+
+
             miniprev.Show();
         }
 

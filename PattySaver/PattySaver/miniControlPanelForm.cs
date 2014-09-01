@@ -176,51 +176,6 @@ namespace ScotSoft.PattySaver
 
             Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_Load(): entered.");
 
-            // Now we make our form a child window of the Control Panel window
-            // hWnd passed to us in the constructor.
-
-            // Set our window style to WS_CHILD, so that our window is 
-            // destroyed when parent window is destroyed. Start by getting
-            // the value which represents the current window style, and modifying
-            // that value to include WS_CHILD.
-            IntPtr ip = new IntPtr();
-            int index = (int)NativeMethods.WindowLongFlags.GWL_STYLE | 0x40000000;
-            NativeMethods.SetLastErrorEx(0, 0);
-            Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Load(): About to call GetWindowLongPtr:");
-            ip = NativeMethods.GetWindowLongPtr(this.Handle, index);
-            int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-            Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Load(): GetWindowLongPtr returned IntPtr: " + ip.ToString() + ", GetLastError() returned: " + error.ToString());
-
-            // Now use that value to set our window style.
-            object ohRef = new object();
-            HandleRef hRef = new HandleRef(ohRef, this.Handle);
-            IntPtr ip2 = new IntPtr();
-            NativeMethods.SetLastErrorEx(0, 0);
-            Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Load(): About to call SetWindowLongPtr:");
-            index = (int)NativeMethods.WindowLongFlags.GWL_STYLE;
-            ip2 = NativeMethods.SetWindowLongPtr(hRef, index, ip);
-            error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-            Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Load(): SetWindowLongPtr returned IntPtr: " + ip2.ToString() + ", GetLastError() returned: " + error.ToString());
-
-            // Now make the passed hWnd our parent window.
-            Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Load(): Calling SetParent to set new Parent for our form:");
-            NativeMethods.SetLastErrorEx(0, 0);
-            IntPtr newOldParent = NativeMethods.SetParent(this.Handle, iphWnd);
-            error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-            Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Load(): SetParent() returned IntPtr = " + newOldParent.ToString() + ", GetLastError() returned: " + error.ToString());
-
-            // Set our window's size to the size of our window's new parent.
-            // First, get that size.
-            Rectangle ParentRect = new Rectangle();
-            NativeMethods.SetLastErrorEx(0, 0);
-            Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Load(): Calling GetClientRect to get a new rect for our form:");
-            bool fSuccecss = NativeMethods.GetClientRect(iphWnd, ref ParentRect);
-            Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Load(): GetClientRect() returned bool = " + fSuccecss + ", GetLastError() returned: " + error.ToString());
-
-            // Set our size to new rect and location at (0, 0)
-            Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Load(): Setting Size and Position:");
-            this.Size = ParentRect.Size;
-            this.Location = new Point(0, 0);
 
             // Start a timer, so we can (optionally) show the debug window AFTER we've already shown the form
             if (LaunchManager.Modes.fPopUpDebugOutputWindowOnTimer)
