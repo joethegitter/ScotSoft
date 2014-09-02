@@ -512,25 +512,36 @@ namespace ScotSoft.PattySaver
         /// </summary>
         static void ShowSettings(IntPtr hwnd)
         {
-            Form settings = new Settings(hwnd);
-            ScrollingTextWindow debugOutputWindow = new ScrollingTextWindow(settings);
+            Logging.LogLineIf(fDebugTrace, "ShowMiniPreview(): Entered.");
 
-            // Find the Window whose caption says "Screen Saver Settings"
-            Logging.LogLineIf(fDebugTrace, "  ShowSettings(): Calling FindWindowByCaption():");
-            NativeMethods.SetLastErrorEx(0, 0);
-            IntPtr daddy = NativeMethods.FindWindowByCaption(IntPtr.Zero, "Screen Saver Settings");
-            int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-            Logging.LogLineIf(fDebugTrace, "  ShowSettings(): FindWindowByCaption() returned IntPtr = " + daddy.ToString() + ", GetLastError() returned: " + error.ToString());
+            if (NativeMethods.IsWindow(hwnd))
+            {
 
-            //Logging.LogLineIf(fDebugTrace, "  ShowSettings(): Calling SetParent to set new Parent for our form:");
-            //NativeMethods.SetLastErrorEx(0, 0);
-            //IntPtr newOldParent = NativeMethods.SetParent(settings.Handle, hwnd);
-            //error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-            //Logging.LogLineIf(fDebugTrace, "  ShowSettings(): SetParent() returned IntPtr = " + newOldParent.ToString() + ", GetLastError() returned: " + error.ToString());
+                Form settings = new Settings(hwnd);
+                ScrollingTextWindow debugOutputWindow = new ScrollingTextWindow(settings);
 
-            NativeMethods.WindowWrapper ww = new NativeMethods.WindowWrapper(daddy);
-            settings.Visible = false;
-            settings.ShowDialog(ww);
+                // TODO: HACK - we should take the passed hwnd and work our way up to the owner.
+                // the current method will fail when language is not english, or windows changes the caption
+
+                // Find the Window whose caption says "Screen Saver Settings"
+                Logging.LogLineIf(fDebugTrace, "  ShowSettings(): Calling FindWindowByCaption():");
+                NativeMethods.SetLastErrorEx(0, 0);
+                IntPtr daddy = NativeMethods.FindWindowByCaption(IntPtr.Zero, "Screen Saver Settings");
+                int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                Logging.LogLineIf(fDebugTrace, "  ShowSettings(): FindWindowByCaption() returned IntPtr = " + daddy.ToString() + ", GetLastError() returned: " + error.ToString());
+
+                // and show ourselves modal to that window
+                NativeMethods.WindowWrapper ww = new NativeMethods.WindowWrapper(daddy);
+                settings.Visible = false;
+                settings.ShowDialog(ww);
+            }
+            else
+            {
+                Logging.LogLineIf(fDebugOutput, "  ShowMiniPreview(): Invalid hWnd passed: " + hwnd.ToString());
+                throw new ArgumentException("Invalid hWnd passed to ShowMiniPreview(): " + hwnd.ToString());
+            }
+
+            Logging.LogLineIf(fDebugTrace, "ShowMiniPreview(): Exiting.");
         }
 
 
@@ -540,54 +551,77 @@ namespace ScotSoft.PattySaver
         /// <param name="hwnd">hwnd to the little window of the control panel.</param>
         static void ShowMiniPreview(IntPtr hwnd)
         {
-            Form miniprev = new miniControlPanelForm(hwnd);
+            Logging.LogLineIf(fDebugTrace, "ShowMiniPreview(): Entered.");
 
-            // Set miniprev's window style to WS_CHILD, so that it window is 
-            // destroyed when parent window is destroyed. Start by getting
-            // the value which represents the current window style, and modifying
-            // that value to include WS_CHILD.
-            // TODO: should probably also be clearing WS_POPUP
-            IntPtr ip = new IntPtr();
-            int index = (int)NativeMethods.WindowLongFlags.GWL_STYLE | 0x40000000;
-            NativeMethods.SetLastErrorEx(0, 0);
-            Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): About to call GetWindowLongPtr:");
-            ip = NativeMethods.GetWindowLongPtr(miniprev.Handle, index);
-            int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-            Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): GetWindowLongPtr returned IntPtr: " + ip.ToString() + ", GetLastError() returned: " + error.ToString());
+            if (NativeMethods.IsWindow(hwnd))
+            {
+                // create the form
+                Form miniprev = new miniControlPanelForm(hwnd);
 
-            // Now use that value to set the new window style.
-            object ohRef = new object();
-            HandleRef hRef = new HandleRef(ohRef, miniprev.Handle);
-            IntPtr ip2 = new IntPtr();
-            NativeMethods.SetLastErrorEx(0, 0);
-            Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): About to call SetWindowLongPtr:");
-            index = (int)NativeMethods.WindowLongFlags.GWL_STYLE;
-            ip2 = NativeMethods.SetWindowLongPtr(hRef, index, ip);
-            error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-            Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): SetWindowLongPtr returned IntPtr: " + ip2.ToString() + ", GetLastError() returned: " + error.ToString());
+                // Set miniprev's window style to WS_CHILD, so that its window is 
+                // destroyed when parent window is destroyed. Start by getting
+                // the value which represents the current window style, and modifying
+                // that value to include WS_CHILD.
+                // TODO: should probably also be clearing WS_POPUP
 
-            // Now make the passed hWnd miniprev's parent window.
-            Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Calling SetParent to set new Parent for our form:");
-            NativeMethods.SetLastErrorEx(0, 0);
-            IntPtr newOldParent = NativeMethods.SetParent(miniprev.Handle, hwnd);
-            error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-            Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): SetParent() returned IntPtr = " + newOldParent.ToString() + ", GetLastError() returned: " + error.ToString());
+                IntPtr ip = new IntPtr();
+                int index = (int)NativeMethods.WindowLongFlags.GWL_STYLE | 0x40000000;
+                NativeMethods.SetLastErrorEx(0, 0);
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): About to call GetWindowLongPtr:");
+                ip = NativeMethods.GetWindowLongPtr(miniprev.Handle, index);
+                int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): GetWindowLongPtr returned IntPtr: " + ip.ToString() + ", GetLastError() returned: " + error.ToString());
 
-            // Set miniprev window size to the size of our window's new parent.
-            // First, get that size.
-            System.Drawing.Rectangle ParentRect = new System.Drawing.Rectangle();
-            NativeMethods.SetLastErrorEx(0, 0);
-            Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Calling GetClientRect to get a new rect for our form:");
-            bool fSuccecss = NativeMethods.GetClientRect(hwnd, ref ParentRect);
-            Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): GetClientRect() returned bool = " + fSuccecss + ", GetLastError() returned: " + error.ToString());
+                // Now use that value to set the new window style.
+                object ohRef = new object();
+                HandleRef hRef = new HandleRef(ohRef, miniprev.Handle);
+                IntPtr ip2 = new IntPtr();
+                NativeMethods.SetLastErrorEx(0, 0);
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): About to call SetWindowLongPtr:");
+                index = (int)NativeMethods.WindowLongFlags.GWL_STYLE;
+                ip2 = NativeMethods.SetWindowLongPtr(hRef, index, ip);
+                error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): SetWindowLongPtr returned IntPtr: " + ip2.ToString() + ", GetLastError() returned: " + error.ToString());
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): miniprev.Visible = " + miniprev.Visible.ToString());
 
-            // Set our size to new rect and location at (0, 0)
-            Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Setting Size and Position:");
-            miniprev.Size = ParentRect.Size;
-            miniprev.Location = new System.Drawing.Point(0, 0);
+                // Now make the passed hWnd miniprev's parent window.
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Calling SetParent to set new Parent for our form:");
+                NativeMethods.SetLastErrorEx(0, 0);
+                IntPtr newOldParent = NativeMethods.SetParent(miniprev.Handle, hwnd);
+                error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): SetParent() returned IntPtr = " + newOldParent.ToString() + ", GetLastError() returned: " + error.ToString());
 
+                // Set miniprev window size to the size of our window's new parent.
+                // First, get that size.
+                System.Drawing.Rectangle ParentRect = new System.Drawing.Rectangle();
+                NativeMethods.SetLastErrorEx(0, 0);
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Calling GetClientRect to get a new rect for our form:");
+                bool fSuccecss = NativeMethods.GetClientRect(hwnd, ref ParentRect);
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): GetClientRect() returned bool = " + fSuccecss + ", GetLastError() returned: " + error.ToString());
 
-            miniprev.Show();
+                // Set our size to new rect and location at (0, 0)
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Setting Size and Position.");
+                miniprev.Size = ParentRect.Size;
+                miniprev.Location = new System.Drawing.Point(0, 0);
+
+                // Show 
+                miniprev.Show();
+
+                //// Show with owner = passed hwnd
+                //NativeMethods.WindowWrapper ww = new NativeMethods.WindowWrapper(hwnd);
+                //miniprev.Show(ww);
+            }
+            else
+            {
+                Logging.LogLineIf(fDebugOutput, "  ShowMiniPreview(): Invalid hWnd passed: " + hwnd.ToString());
+                throw new ArgumentException("Invalid hWnd passed to ShowMiniPreview(): " + hwnd.ToString());
+            }
+
+            //// Show with owner = passed hwnd
+            //NativeMethods.WindowWrapper ww = new NativeMethods.WindowWrapper(hwnd);
+            //miniprev.Show(ww);
+
+            Logging.LogLineIf(fDebugTrace, "ShowMiniPreview(): Exiting.");
         }
 
 
@@ -616,6 +650,8 @@ namespace ScotSoft.PattySaver
             }
             catch { }
             string body = instructions + strSender + details + details2 + stackTrace;
+            Clipboard.SetText(body);
+            Logging.LogLineIf(fDebugTrace, body);
 
             DialogResult dr = MessageBox.Show(body, caption, MessageBoxButtons.OKCancel, MessageBoxIcon.Exclamation);
             if (dr == DialogResult.Cancel)
@@ -655,6 +691,9 @@ namespace ScotSoft.PattySaver
             }
             catch { }
             string body = instructions + strSender + details + details2 + stackTrace;
+            Clipboard.SetText(body);
+            Logging.LogLineIf(fDebugTrace, body);
+
             DialogResult dr;
 
             if (ea.IsTerminating)

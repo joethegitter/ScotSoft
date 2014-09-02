@@ -137,9 +137,6 @@ namespace ScotSoft.PattySaver
             Logging.LogLineIf(fDebugTrace, "Settings_HandleCreated(): exiting.");
         }
 
-        
-
-
         private void Settings_Load(object sender, EventArgs e)
         {
             fDebugTrace = fDebugOutput && fDebugAtTraceLevel;
@@ -154,43 +151,6 @@ namespace ScotSoft.PattySaver
             
             // set title bar
             Text = ProductName + " Settings";
-
-            // if we were opened from the control panel, make our form owned so that it dies with control panel
-            if (OpenedFromControlPanel && fWillingToFightWithControlPanel)
-            {
-                // Now we make our form a child window of the Control Panel window
-                // hWnd passed to us in the constructor.
-
-                // Set our window style to WS_CHILD, so that our window is 
-                // destroyed when parent window is destroyed. Start by getting
-                // the value which represents the current window style, and modifying
-                // that value to include WS_CHILD.
-                IntPtr ip = new IntPtr();
-                int index = (int)NativeMethods.WindowLongFlags.GWL_STYLE | 0x40000000;
-                NativeMethods.SetLastErrorEx(0, 0);
-                Logging.LogLineIf(fDebugTrace, "  Settings_Load(): About to call GetWindowLongPtr:");
-                ip = NativeMethods.GetWindowLongPtr(this.Handle, index);
-                int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-                Logging.LogLineIf(fDebugTrace, "  Settings_Load(): GetWindowLongPtr returned IntPtr: " + ip.ToString() + ", GetLastError() returned: " + error.ToString());
-
-                // Now use that value to set our window style.
-                object ohRef = new object();
-                HandleRef hRef = new HandleRef(ohRef, this.Handle);
-                IntPtr ip2 = new IntPtr();
-                NativeMethods.SetLastErrorEx(0, 0);
-                Logging.LogLineIf(fDebugTrace, "  Settings_Load(): About to call SetWindowLongPtr:");
-                index = (int)NativeMethods.WindowLongFlags.GWL_STYLE;
-                ip2 = NativeMethods.SetWindowLongPtr(hRef, index, ip);
-                error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-                Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Load(): SetWindowLongPtr returned IntPtr: " + ip2.ToString() + ", GetLastError() returned: " + error.ToString());
-
-
-                Logging.LogLineIf(fDebugTrace, "  Settings_Load(): Calling SetParent to set new Parent for our form:");
-                NativeMethods.SetLastErrorEx(0, 0);
-                IntPtr newOldParent = NativeMethods.SetParent(this.Handle, ControlPanelPassedhWnd);
-                error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-                Logging.LogLineIf(fDebugTrace, "  Settings_Load(): SetParent() returned IntPtr = " + newOldParent.ToString() + ", GetLastError() returned: " + error.ToString());
-            }
 
             // Setting the owner of this Form to the FullScreen Form allows us to call its methods
             if (OpenedFromScreenSaverForm) myParentFullScreenForm = (ScreenSaverForm)this.Owner;

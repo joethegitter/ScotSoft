@@ -123,6 +123,9 @@ namespace ScotSoft.PattySaver
         [DllImport("User32", EntryPoint = "ScreenToClient", SetLastError = true, ExactSpelling = true, CharSet = CharSet.Auto)]
         internal static extern int ScreenToClient(IntPtr hWnd, [In, Out] POINT pt);
 
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool IsWindow(IntPtr hWnd);
 
 
         public static bool IsWindowVisible_Api(IntPtr hWnd)
@@ -158,21 +161,8 @@ namespace ScotSoft.PattySaver
         [DllImport("user32.dll", SetLastError = true, ExactSpelling = true, CharSet = CharSet.Auto)]
         internal static extern IntPtr GetParent(IntPtr hWnd);
 
-        [DllImport("shlwapi.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        internal static extern bool PathCompactPathEx([Out] StringBuilder pszOut, string szPath, int cchMax, int dwFlags);
-
         [DllImport("user32.dll", EntryPoint="FindWindow", SetLastError = true)]
         internal static extern IntPtr FindWindowByCaption(IntPtr ZeroOnly, string lpWindowName);
-
-
-        public static string CompactPath(string longPathName, int wantedLength)
-        {
-            // NOTE: You need to create the builder with the required capacity before calling function.
-            // See http://msdn.microsoft.com/en-us/library/aa446536.aspx
-            StringBuilder sb = new StringBuilder(wantedLength + 1);
-            PathCompactPathEx(sb, longPathName, wantedLength + 1, 0);
-            return sb.ToString();
-        }
 
         /// <summary>
         /// Wrapper class so that we can return an IWin32Window given a hwnd
