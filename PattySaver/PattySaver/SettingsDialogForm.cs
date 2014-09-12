@@ -109,39 +109,9 @@ namespace ScotSoft.PattySaver
 
         #region Form Events
 
-        /// <summary>
-        /// Override of WndProc, so we can detect WM_DESTROY messages sent to
-        /// our form and quit the Application.
-        /// </summary>
-        /// <param name="m">Message being sent to our Window.</param>
-        /// <remarks>When the Control Panel closes, if form is open, it does not
-        /// get a Close message. Instead we get sent a WM_DESTROY message. So we 
-        /// use that to close our form.</remarks>
-        protected override void WndProc(ref Message m)
-        {
-            // if we receive WM_DESTROY, close the form, where we'll quit the app
-            if (m.Msg == (int)0x0002)   // WM_DESTROY
-            {
-                this.Close();
-                return;
-            }
-
-            // if we didn't handle it, let the base class handle it
-            base.WndProc(ref m);
-        }
-
-        private void Settings_HandleCreated(object sender, EventArgs e)
-        {
-            Logging.LogLineIf(fDebugTrace, "Settings_HandleCreated(): entered.");
-
-            Logging.LogLineIf(fDebugTrace, "Settings_HandleCreated(): exiting.");
-        }
-
         private void Settings_Load(object sender, EventArgs e)
         {
             fDebugTrace = fDebugOutput && fDebugAtTraceLevel;
-
-            bool fWillingToFightWithControlPanel = false;   // controls whether I'm willing to fight with window ownership code
 
             // set flags
             fLoadIsRunning = true;
@@ -195,6 +165,7 @@ namespace ScotSoft.PattySaver
             TestForPictureFolderWarning();
 
             fLoadIsRunning = false;
+            fLoadHasCompleted = true;
 
             Logging.LogLineIf(fDebugTrace, "Settings_Load(): entered.");
         }

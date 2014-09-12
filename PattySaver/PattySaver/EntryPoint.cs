@@ -40,7 +40,6 @@ namespace ScotSoft.PattySaver
         static bool fDebugOutput = true;                                    // controls whether any debug output is emitted
         static bool fDebugOutputAtTraceLevel = true;                        // impacts the granularity of debug output
         static bool fDebugTrace = fDebugOutput && fDebugOutputAtTraceLevel; // controls the granularity of debug output
-
         
         #endregion Fields
 
@@ -428,33 +427,24 @@ namespace ScotSoft.PattySaver
             if (LaunchMode == Modes.LaunchModality.DT_Configure)
             {
                 ShowSettings();
-                Logging.LogLineIf(fDebugTrace, "   Launch(): calling Application.Run().");
-                Application.Run();
             }
             else if (LaunchMode == Modes.LaunchModality.CP_Configure)
             {
                 ShowSettings(hWnd);
-                //Application.Run();
             }
             else if (LaunchMode == Modes.LaunchModality.ScreenSaver)
             {
                 Modes.fOpenInScreenSaverMode = true;
                 ShowScreenSaver();
-                Logging.LogLineIf(fDebugTrace, "   Launch(): calling Application.Run().");
-                Application.Run();
             }
             else if (LaunchMode == Modes.LaunchModality.ScreenSaverWindowed)
             {
                 Modes.fOpenInScreenSaverMode = false;
                 ShowScreenSaver();
-                Logging.LogLineIf(fDebugTrace, "   Launch(): calling Application.Run().");
-                Application.Run();
             }
             else if (LaunchMode == Modes.LaunchModality.CP_MiniPreview)
             {
                 ShowMiniPreview(hWnd);
-                //Logging.LogLineIf(fDebugTrace, "   Launch(): calling Application.Run().");
-                //Application.Run();
             }
             else if (LaunchMode == Modes.LaunchModality.NOLAUNCH)
             {
@@ -479,8 +469,8 @@ namespace ScotSoft.PattySaver
                 ShowSettings();
 
                 Logging.LogLineIf(fDebugOutput, " ** Launch(): we fell through to Mode.Undecided, calling Application.Run().");
-
                 Application.Run();
+
                 Logging.LogLineIf(fDebugTrace, "Launch(): exiting for realsies.");
             }
         }
@@ -494,6 +484,7 @@ namespace ScotSoft.PattySaver
             {
                 ScreenSaverForm screensaver = new ScreenSaverForm(screen.Bounds);
                 screensaver.Show();
+                Application.Run(screensaver);
             }
         }
 
@@ -505,6 +496,7 @@ namespace ScotSoft.PattySaver
         {
             Form settings = new Settings();
             settings.Show();
+            Application.Run(settings);
         }
 
 
@@ -517,7 +509,6 @@ namespace ScotSoft.PattySaver
 
             if (NativeMethods.IsWindow(hWnd))
             {
-
                 Form settings = new Settings(hWnd);
                 ScrollingTextWindow debugOutputWindow = new ScrollingTextWindow(settings);
 
@@ -568,14 +559,14 @@ namespace ScotSoft.PattySaver
 
                 int error = 0;
 
-                // Determine what the initial parent of our form is.
-                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Getting initial parent of form: Calling GetParent(" + DecNHex(preview.Handle) + ")...");
-                NativeMethods.SetLastErrorEx(0, 0);
-                IntPtr originalParent = NativeMethods.GetParent(preview.Handle);
-                error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): GetParent() returned IntPtr = " + DecNHex(originalParent));
-                Logging.LogLineIf(fDebugTrace, "      GetLastError() returned: " + error.ToString());
-                Logging.LogLineIf(fDebugTrace, " ");
+                //// Determine who the initial parent of our form is.
+                //Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Getting initial parent of form: Calling GetParent(" + DecNHex(preview.Handle) + ")...");
+                //NativeMethods.SetLastErrorEx(0, 0);
+                //IntPtr originalParent = NativeMethods.GetParent(preview.Handle);
+                //error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                //Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): GetParent() returned IntPtr = " + DecNHex(originalParent));
+                //Logging.LogLineIf(fDebugTrace, "      GetLastError() returned: " + error.ToString());
+                //Logging.LogLineIf(fDebugTrace, " ");
 
                 // Set the passed hWnd to be the parent of the form window.
                 Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Changing parent of form to passed hWnd: Calling SetParent(" + DecNHex(preview.Handle) + ", " + DecNHex(hWnd) + ")...");

@@ -1397,8 +1397,10 @@ namespace ScotSoft.PattySaver
                 // Don't go back to an old stale pic. Force ourselves to get a new one.
                 DoPreviousOrNext(false);
             }
-
-            fShowingDialog = false;
+            else
+            {
+                fShowingDialog = false;
+            }
             
             // dispose of the form, since we create a new one every time
             settingsForm.Dispose();
