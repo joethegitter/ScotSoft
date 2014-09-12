@@ -14,7 +14,7 @@ namespace ScotSoft.PattySaver
 {
     static class EntryPoint
     {
-        #region Data
+        #region Fields
 
         // command line strings and file extensions
         public const string VSHOSTED = ".vshost";                   // string appended to our exe basename by VS when hosted
@@ -41,7 +41,8 @@ namespace ScotSoft.PattySaver
         static bool fDebugOutputAtTraceLevel = true;                        // impacts the granularity of debug output
         static bool fDebugTrace = fDebugOutput && fDebugOutputAtTraceLevel; // controls the granularity of debug output
 
-        #endregion Data
+        
+        #endregion Fields
 
         /// <summary>
         /// The entry point for our application.
@@ -433,7 +434,7 @@ namespace ScotSoft.PattySaver
             else if (LaunchMode == Modes.LaunchModality.CP_Configure)
             {
                 ShowSettings(hWnd);
-                Application.Run();
+                //Application.Run();
             }
             else if (LaunchMode == Modes.LaunchModality.ScreenSaver)
             {
@@ -452,8 +453,8 @@ namespace ScotSoft.PattySaver
             else if (LaunchMode == Modes.LaunchModality.CP_MiniPreview)
             {
                 ShowMiniPreview(hWnd);
-                Logging.LogLineIf(fDebugTrace, "   Launch(): calling Application.Run().");
-                Application.Run();
+                //Logging.LogLineIf(fDebugTrace, "   Launch(): calling Application.Run().");
+                //Application.Run();
             }
             else if (LaunchMode == Modes.LaunchModality.NOLAUNCH)
             {
@@ -508,121 +509,145 @@ namespace ScotSoft.PattySaver
 
 
         /// <summary>
-        /// Displays the Settings form when requested the Control Panel.
+        /// Displays the Settings form when requested by the Control Panel.
         /// </summary>
-        static void ShowSettings(IntPtr hwnd)
+        static void ShowSettings(IntPtr hWnd)
         {
-            Logging.LogLineIf(fDebugTrace, "ShowMiniPreview(): Entered.");
+            Logging.LogLineIf(fDebugTrace, "ShowSettings(): Entered.");
 
-            if (NativeMethods.IsWindow(hwnd))
+            if (NativeMethods.IsWindow(hWnd))
             {
 
-                Form settings = new Settings(hwnd);
+                Form settings = new Settings(hWnd);
                 ScrollingTextWindow debugOutputWindow = new ScrollingTextWindow(settings);
 
-                // TODO: HACK - we should take the passed hwnd and work our way up to the owner.
-                // the current method will fail when language is not english, or windows changes the caption
+                int error = 0;
 
-                // Find the Window whose caption says "Screen Saver Settings"
-                Logging.LogLineIf(fDebugTrace, "  ShowSettings(): Calling FindWindowByCaption():");
+                // Get the root owner of the passed hWnd
+                Logging.LogLineIf(fDebugTrace, "  ShowSettings(): Getting Root Ancestor: calling GetAncestor(hWnd, GetRoot)...");
                 NativeMethods.SetLastErrorEx(0, 0);
-                IntPtr daddy = NativeMethods.FindWindowByCaption(IntPtr.Zero, "Screen Saver Settings");
-                int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-                Logging.LogLineIf(fDebugTrace, "  ShowSettings(): FindWindowByCaption() returned IntPtr = " + daddy.ToString() + ", GetLastError() returned: " + error.ToString());
+                IntPtr passedWndRoot = NativeMethods.GetAncestor(hWnd, NativeMethods.GetAncestorFlags.GetRoot);
+                error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                Logging.LogLineIf(fDebugTrace, "  ShowSettings(): GetAncestor() returned IntPtr: " + EntryPoint.DecNHex(passedWndRoot));
+                Logging.LogLineIf(fDebugTrace, "      GetLastError() returned: " + error.ToString());
+                Logging.LogLineIf(fDebugTrace, " ");
 
                 // and show ourselves modal to that window
-                NativeMethods.WindowWrapper ww = new NativeMethods.WindowWrapper(daddy);
-                settings.Visible = false;
+                NativeMethods.WindowWrapper ww = new NativeMethods.WindowWrapper(passedWndRoot);
+                Logging.LogLineIf(fDebugTrace, "  ShowSettings(): calling ShowDialog().");
                 settings.ShowDialog(ww);
+
+                // and run it
+                Logging.LogLineIf(fDebugTrace, "  ShowSettings(): calling Application.Run(settings)).");
+                Application.Run(settings);
             }
             else
             {
-                Logging.LogLineIf(fDebugOutput, "  ShowMiniPreview(): Invalid hWnd passed: " + hwnd.ToString());
-                throw new ArgumentException("Invalid hWnd passed to ShowMiniPreview(): " + hwnd.ToString());
+                Logging.LogLineIf(fDebugOutput, "  ShowSettings(): Invalid hWnd passed: " + hWnd.ToString());
+                throw new ArgumentException("Invalid hWnd passed to ShowMiniPreview(): " + hWnd.ToString());
             }
 
-            Logging.LogLineIf(fDebugTrace, "ShowMiniPreview(): Exiting.");
+            Logging.LogLineIf(fDebugTrace, "ShowSettings(): Exiting.");
         }
 
 
         /// <summary>
         /// Show the little miniControlPanelForm in the Control Panel window
         /// </summary>
-        /// <param name="hwnd">hwnd to the little window of the control panel.</param>
-        static void ShowMiniPreview(IntPtr hwnd)
+        /// <param name="hWnd">hwnd to the little window of the control panel.</param>
+        static void ShowMiniPreview(IntPtr hWnd)
         {
             Logging.LogLineIf(fDebugTrace, "ShowMiniPreview(): Entered.");
+            Logging.LogLineIf(fDebugTrace, "   ShowMiniPreview(): hWnd = " + EntryPoint.DecNHex(hWnd));
 
-            if (NativeMethods.IsWindow(hwnd))
+            if (NativeMethods.IsWindow(hWnd))
             {
-                // create the form
-                Form miniprev = new miniControlPanelForm(hwnd);
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): calling miniControlPanelForm constructor with argument: " + DecNHex(hWnd) + " ...");
+                miniControlPanelForm preview = new miniControlPanelForm(hWnd);
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Constructor returned. Window handle is: " + DecNHex(preview.Handle));
 
-                // Set miniprev's window style to WS_CHILD, so that its window is 
-                // destroyed when parent window is destroyed. Start by getting
-                // the value which represents the current window style, and modifying
-                // that value to include WS_CHILD.
-                // TODO: should probably also be clearing WS_POPUP
+                int error = 0;
 
-                IntPtr ip = new IntPtr();
-                int index = (int)NativeMethods.WindowLongFlags.GWL_STYLE | 0x40000000;
+                // Determine what the initial parent of our form is.
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Getting initial parent of form: Calling GetParent(" + DecNHex(preview.Handle) + ")...");
                 NativeMethods.SetLastErrorEx(0, 0);
-                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): About to call GetWindowLongPtr:");
-                ip = NativeMethods.GetWindowLongPtr(miniprev.Handle, index);
-                int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): GetWindowLongPtr returned IntPtr: " + ip.ToString() + ", GetLastError() returned: " + error.ToString());
-
-                // Now use that value to set the new window style.
-                object ohRef = new object();
-                HandleRef hRef = new HandleRef(ohRef, miniprev.Handle);
-                IntPtr ip2 = new IntPtr();
-                NativeMethods.SetLastErrorEx(0, 0);
-                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): About to call SetWindowLongPtr:");
-                index = (int)NativeMethods.WindowLongFlags.GWL_STYLE;
-                ip2 = NativeMethods.SetWindowLongPtr(hRef, index, ip);
+                IntPtr originalParent = NativeMethods.GetParent(preview.Handle);
                 error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): SetWindowLongPtr returned IntPtr: " + ip2.ToString() + ", GetLastError() returned: " + error.ToString());
-                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): miniprev.Visible = " + miniprev.Visible.ToString());
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): GetParent() returned IntPtr = " + DecNHex(originalParent));
+                Logging.LogLineIf(fDebugTrace, "      GetLastError() returned: " + error.ToString());
+                Logging.LogLineIf(fDebugTrace, " ");
 
-                // Now make the passed hWnd miniprev's parent window.
-                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Calling SetParent to set new Parent for our form:");
+                // Set the passed hWnd to be the parent of the form window.
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Changing parent of form to passed hWnd: Calling SetParent(" + DecNHex(preview.Handle) + ", " + DecNHex(hWnd) + ")...");
                 NativeMethods.SetLastErrorEx(0, 0);
-                IntPtr newOldParent = NativeMethods.SetParent(miniprev.Handle, hwnd);
+                IntPtr newParent = NativeMethods.SetParent(preview.Handle, hWnd);
                 error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): SetParent() returned IntPtr = " + newOldParent.ToString() + ", GetLastError() returned: " + error.ToString());
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): SetParent() returned IntPtr = " + DecNHex(newParent));
+                Logging.LogLineIf(fDebugTrace, "      GetLastError() returned: " + error.ToString());
+                Logging.LogLineIf(fDebugTrace, " ");
 
-                // Set miniprev window size to the size of our window's new parent.
-                // First, get that size.
+                // Verify if the form now has the expected new parent.
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Verifying new parent: Calling GetParent(" + DecNHex(preview.Handle) + ")...");
+                NativeMethods.SetLastErrorEx(0, 0);
+                IntPtr verifyParent = NativeMethods.GetParent(preview.Handle);
+                error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): GetParent() returned IntPtr = " + DecNHex(verifyParent));
+                Logging.LogLineIf(fDebugTrace, "      GetLastError() returned: " + error.ToString());
+                Logging.LogLineIf(fDebugTrace, " ");
+
+                // Set the size of the form to the size of the passed hWnd
                 System.Drawing.Rectangle ParentRect = new System.Drawing.Rectangle();
                 NativeMethods.SetLastErrorEx(0, 0);
-                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Calling GetClientRect to get a new rect for our form:");
-                bool fSuccecss = NativeMethods.GetClientRect(hwnd, ref ParentRect);
-                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): GetClientRect() returned bool = " + fSuccecss + ", GetLastError() returned: " + error.ToString());
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Calling GetClientRect(" + DecNHex(hWnd) + ")...");
+                bool fSuccess = NativeMethods.GetClientRect(hWnd, ref ParentRect);
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): GetClientRect() returned bool = " + fSuccess + ", rect = " + ParentRect.ToString());
+                Logging.LogLineIf(fDebugTrace, "      GetLastError() returned: " + error.ToString());
+                Logging.LogLineIf(fDebugTrace, " ");
 
                 // Set our size to new rect and location at (0, 0)
-                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Setting Size and Position.");
-                miniprev.Size = ParentRect.Size;
-                miniprev.Location = new System.Drawing.Point(0, 0);
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Setting Size and Position with C# code:");
+                preview.Size = ParentRect.Size;
+                preview.Location = new System.Drawing.Point(0, 0);
 
-                // Show 
-                miniprev.Show();
+                // Show the form
+                Logging.LogLineIf(fDebugTrace, " ");
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Calling preview.Show()...");
+                preview.Show();
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Show() has returned.");
 
-                //// Show with owner = passed hwnd
-                //NativeMethods.WindowWrapper ww = new NativeMethods.WindowWrapper(hwnd);
-                //miniprev.Show(ww);
+                // and run it
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): calling Application.Run(preview)).");
+                Application.Run(preview);
             }
             else
             {
-                Logging.LogLineIf(fDebugOutput, "  ShowMiniPreview(): Invalid hWnd passed: " + hwnd.ToString());
-                throw new ArgumentException("Invalid hWnd passed to ShowMiniPreview(): " + hwnd.ToString());
+                Logging.LogLineIf(fDebugOutput, "  ShowMiniPreview(): Invalid hWnd passed: " + hWnd.ToString());
+                throw new ArgumentException("Invalid hWnd passed to ShowMiniPreview(): " + hWnd.ToString());
             }
-
-            //// Show with owner = passed hwnd
-            //NativeMethods.WindowWrapper ww = new NativeMethods.WindowWrapper(hwnd);
-            //miniprev.Show(ww);
 
             Logging.LogLineIf(fDebugTrace, "ShowMiniPreview(): Exiting.");
         }
+
+        public static string DecNHex(int val)
+        {
+            return val.ToString("x") + "/" + val.ToString();
+        }
+
+        public static string DecNHex(long val)
+        {
+            return val.ToString("x") + "/" + val.ToString();
+        }
+
+        public static string DecNHex(IntPtr val)
+        {
+            return val.ToString("x") + "/" + val.ToString();
+        }
+
+        public static string DecNHex(HandleRef val)
+        {
+            return val.Handle.ToString("x") + "/" + val.Handle.ToString();
+        }
+
 
 
 

@@ -26,6 +26,7 @@ namespace ScotSoft.PattySaver
         bool fDebugOutputAtTraceLevel = true;
         bool fDebugTrace = false;  // do not modify value here, it is set in constructor
         List<int> msgsToIgnore = new List<int>();
+        public Timer tock = null;
 
         // Debug Output window
         ScrollingTextWindow debugOutputWindow = null;
@@ -81,31 +82,19 @@ namespace ScotSoft.PattySaver
             // store away the passed hWnd
             iphWnd = hWnd;
 
-            // bind a handler to the viz changed event
-            this.VisibleChanged += miniControlPanelForm_VisibleChanged;
-
-            // add msgs to ignore list
-            // #define WM_MOUSEMOVE                    0x0200
-            // #define WM_NCMOUSEHOVER                 0x02A0
-            // #define WM_MOUSEHOVER                   0x02A1
-            // #define WM_MOUSELEAVE                   0x02A3
-            // #define WM_NCHITTEST                    0x0084
-            // #define WM_NCMOUSELEAVE                 0x02A2
-            // #define WM_NCMOUSEMOVE                  0x00A0
-
-            msgsToIgnore.Add((int)0x0200);
-            msgsToIgnore.Add((int)0x02A0);
-            msgsToIgnore.Add((int)0x02A1);
-            msgsToIgnore.Add((int)0x02A3);
-            msgsToIgnore.Add((int)0x0084);
-            msgsToIgnore.Add((int)0x02A2);
-            msgsToIgnore.Add((int)0x00A0);
-            msgsToIgnore.Add((int)0x0020);   // WM_SETCURSOR
-            msgsToIgnore.Add((int)0x14);      // (WM_ERASEBKGND)
-            msgsToIgnore.Add((int)0xe);      // (WM_GETTEXTLENGTH)
-            msgsToIgnore.Add((int)0xd);      // (msg=0xd (WM_GETTEXT))
-            msgsToIgnore.Add((int)0xf);      // (0xf (WM_PAINT))
-
+            // make a list of window messages that our debug output code will NOT emit
+            msgsToIgnore.Add((int)0x0200);      // WM_MOUSEMOVE                    0x0200
+            msgsToIgnore.Add((int)0x02A0);      // WM_NCMOUSEHOVER                 0x02A0
+            msgsToIgnore.Add((int)0x02A1);      // WM_MOUSEHOVER                   0x02A1
+            msgsToIgnore.Add((int)0x02A3);      // WM_MOUSELEAVE                   0x02A3
+            msgsToIgnore.Add((int)0x0084);      // WM_NCHITTEST                    0x0084
+            msgsToIgnore.Add((int)0x02A2);      // WM_NCMOUSELEAVE                 0x02A2
+            msgsToIgnore.Add((int)0x00A0);      // WM_NCMOUSEMOVE                  0x00A0
+            msgsToIgnore.Add((int)0x0020);      // WM_SETCURSOR
+            msgsToIgnore.Add((int)0x14);        // (WM_ERASEBKGND)
+            msgsToIgnore.Add((int)0xe);         // (WM_GETTEXTLENGTH)
+            msgsToIgnore.Add((int)0xd);         // (msg=0xd (WM_GETTEXT))
+            msgsToIgnore.Add((int)0xf);         // (0xf (WM_PAINT))
 
             // get the stored (or newly initialized) settings info
             Logging.LogLineIf(fDebugTrace, "   miniControlPanelForm.ctor(): calling InitializeAndLoadConfigSettingsFromStorage()");
@@ -114,13 +103,6 @@ namespace ScotSoft.PattySaver
             fConstructorIsRunning = false;
             fConstructorHasCompleted = true;
             Logging.LogLineIf(fDebugTrace, "miniControlPanelForm.ctor(): exiting.");
-        }
-
-        void miniControlPanelForm_VisibleChanged(object sender, EventArgs e)
-        {
-            Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_VisibleChanged(): entered.");
-            Logging.LogLineIf(fDebugTrace, "   miniControlPanelForm_VisibleChanged(): Visible = " + this.Visible.ToString());
-            Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_VisibleChanged(): exiting.");
         }
 
         #endregion Constructor
@@ -151,53 +133,29 @@ namespace ScotSoft.PattySaver
                 Logging.LogLineIf(fblastme, "  --> " + m.Msg.ToString() + ": " + m.ToString());
             }
 
-            // if we receive WM_DESTROY or NC_PAINT & WPARAM = 1, close the form, where we'll quit the app
-
             switch ((int)m.Msg)
             {
                 case ((int)0x0002):   // WM_DESTROY
                     if (!this.Disposing && !this.IsDisposed && fShownHandlerHasCompleted && !fClosingHandlerIsRunning && !fClosingHandlerHasCompleted)
                     {
+                        Logging.LogLineIf(fDebugTrace, "* WndProc(): WM_DESTROY received. Calling this.Close().");
+
                         this.Close();
                         return;
                     }
                     break;
 
-                    // TODO: hack of sorts. In the control panel, if our miniControlPanel form is running, when the user
-                    // selects another screen saver, our form does not receive any message to kill itself.
-                    // So, it keeps running, interfering with the other screen saver drawing in the control panel. 
-                    // Then, when the user selects us again, another instance of our app launches. Now we have have multiple
-                    // instances running, all trying to draw in the same area.
-
-                    // However: when the user does select another screen saver, we do get NC_PAINT messages, with a WPARAM
-                    // of 1. When we receive this message, we kill our instance. Unfortunately, there is at least one 
-                    // other scenario where we get NC_PAINT & WPARAM =1. So, we may occasionally kill our instance for
-                    // no apparent reason. This is not fatal in any way, we just stop drawing our screen saver in the little
-                    // control panel window. So far, the only circumstance I have detected where NC_PAINT & WPARAM = 1
-                    // is sent outside of our desired case is when the user moves the control panel window off screen 
-                    // enough such that our form is partially or completely offscreen.  At that point, we get the NC_PAINT
-                    // & WPARAM = 1, and we kill our instance.
-
-                    // Various fixes:
-                    // 1. when we get the NC_PAINT & WPARAM = 1, check to see if our form is partially or completely
-                    // offscreeen.  If so, don't kill the instance.
-                    // 2. do not allow multiple instances of our app when launched with same mode parameter. Each time
-                    // we get launched, we check to see if there is a process with our name running. If so, we use the 
-                    // "prevent multiple instance" code from VB.NET to pass the new data to the first instance, and then
-                    // kill the new instance.
-                    // 3. In theory, when user clicks Settings button, our miniControlPanelform should kill itself. Note
-                    // that other screen savers remove themselves from the mini-screen when their settings dialog is up.
-                case ((int)0x85):     // NC_PAINT - we use this to detect that user has switched sceen savers
-                    if ((int)m.WParam == 1)
-                    {
-                        if (!this.Disposing && !this.IsDisposed && fShownHandlerHasCompleted && !fClosingHandlerIsRunning && !fClosingHandlerHasCompleted)
-                        {
-                            Logging.LogLineIf(fDebugTrace, "Received dreaded NC_PAINT, fleeing in terror.");
-                            this.Close();
-                            return;
-                        }
-                    }
-                    break;
+                //case ((int)0x85):     // NC_PAINT - we use this to detect that user has switched sceen savers
+                //    if ((int)m.WParam == 1)
+                //    {
+                //        if (!this.Disposing && !this.IsDisposed && fShownHandlerHasCompleted && !fClosingHandlerIsRunning && !fClosingHandlerHasCompleted)
+                //        {
+                //            Logging.LogLineIf(fDebugTrace, "Received dreaded NC_PAINT, fleeing in terror.");
+                //            this.Close();
+                //            return;
+                //        }
+                //    }
+                //    break;
 
                 default:
                     base.WndProc(ref m);
@@ -206,18 +164,39 @@ namespace ScotSoft.PattySaver
             }
         }
 
-        /// <summary>
-        /// Override of ShowWithoutActivation property.  In theory, this tells
-        /// Windows that when our window gets shown, it should not receive activation.
-        /// </summary>
-        protected override bool ShowWithoutActivation
+        // Override of the CreateParams property, so that we can add "child window" as a Style when queried
+        protected override CreateParams CreateParams
         {
             get
             {
-                Logging.LogLineIf(fDebugTrace, "ShowWithoutActivation property accessed, returning true.");
-                return true;
+                Logging.LogLineIf(fDebugTrace, "CreateParams Property (override): get accessor entered.");
+
+                // get the base params
+                CreateParams cp = base.CreateParams;
+                Logging.LogLineIf(fDebugTrace, "   CreateParams Property (override): base style equals: " + EntryPoint.DecNHex(cp.Style));
+
+                // modify base params
+                cp.Style |= NativeMethods.WindowStyles.WS_CHILD;
+                Logging.LogLineIf(fDebugTrace, "   CreateParams Property (override): returning  modified style (base.CreateParams.Style |= WS_CHILD), which equals: " + EntryPoint.DecNHex(cp.Style));
+
+                Logging.LogLineIf(fDebugTrace, "CreateParams Property (override): get accessor exiting.");
+                return cp;
             }
         }
+
+
+        ///// <summary>
+        ///// Override of ShowWithoutActivation property.  In theory, this tells
+        ///// Windows that when our window gets shown, it should not receive activation.
+        ///// </summary>
+        //protected override bool ShowWithoutActivation
+        //{
+        //    get
+        //    {
+        //        Logging.LogLineIf(fDebugTrace, "ShowWithoutActivation property accessed, returning true.");
+        //        return true;
+        //    }
+        //}
 
         /// <summary>
         /// This code runs after constructor, but before form is displayed.
@@ -231,13 +210,12 @@ namespace ScotSoft.PattySaver
 
             Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_Load(): entered.");
 
-
             // Start a timer, so we can (optionally) show the debug window AFTER we've already shown the form
             if (LaunchManager.Modes.fPopUpDebugOutputWindowOnTimer)
             {
                 Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Load(): Starting timer to pop up debug output window:");
                 tock = new Timer();
-                tock.Interval = 6000;       // six seconds
+                tock.Interval = 3000;       // 3 seconds
                 tock.Tick += tock_Tick;     // bind the event handler
                 tock.Start();
             }
@@ -323,6 +301,8 @@ namespace ScotSoft.PattySaver
             // because there is no user UX - miniPreview mode, essentially)
 
             Logging.LogLineIf(fDebugTrace, "tock_Tick(): entered.");
+            tock.Stop();
+
             Logging.LogLineIf(fDebugTrace, "   tock_Tick(): creating debugOutputWindow:");
 
             debugOutputWindow = new ScrollingTextWindow(this);
@@ -330,8 +310,6 @@ namespace ScotSoft.PattySaver
             debugOutputWindow.ShowDisplay();
 
             Logging.LogLineIf(fDebugTrace, "  tock_Tick(): Killing timer.");
-
-            tock.Stop();
             tock.Tick -= tock_Tick;
             tock.Dispose();
             tock = null;
@@ -349,15 +327,15 @@ namespace ScotSoft.PattySaver
             fShownHandlerIsRunning = true;
             Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_Shown(): entered.");
 
-            // We want to avoid our little form getting "focus" or stealing the
-            // Activated look from the Control Panel. So, first time we are shown,
-            // immediately set our parent window to be the foreground window
-            bool fSuccess = false;
-            NativeMethods.SetLastErrorEx(0, 0);
-            Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Shown(): About to call SetForegroundWindow:");
-            fSuccess = NativeMethods.SetForegroundWindow(iphWnd);
-            int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-            Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Shown(): SetForegroundWindow returned bool: " + fSuccess + ", GetLastError() returned: " + error.ToString());
+            //// We want to avoid our little form getting "focus" or stealing the
+            //// Activated look from the Control Panel. So, first time we are shown,
+            //// immediately set our parent window to be the foreground window
+            //bool fSuccess = false;
+            //NativeMethods.SetLastErrorEx(0, 0);
+            //Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Shown(): About to call SetForegroundWindow:");
+            //fSuccess = NativeMethods.SetForegroundWindow(iphWnd);
+            //int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+            //Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Shown(): SetForegroundWindow returned bool: " + fSuccess + ", GetLastError() returned: " + error.ToString());
 
             Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_Shown(): exiting.");
 
@@ -397,35 +375,35 @@ namespace ScotSoft.PattySaver
             Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_FormClosed(): exiting.");
         }
 
-        private void miniControlPanelForm_Activated(object sender, EventArgs e)
-        {
-            Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_Activated(): entering.");
+        //private void miniControlPanelForm_Activated(object sender, EventArgs e)
+        //{
+        //    Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_Activated(): entering.");
 
-            if (fConstructorHasCompleted && fFormLoadHandlerHasCompleted && fShownHandlerHasCompleted)
-            {
-                bool fSuccess = false;
-                NativeMethods.SetLastErrorEx(0, 0);
+        //    if (fConstructorHasCompleted && fFormLoadHandlerHasCompleted && fShownHandlerHasCompleted)
+        //    {
+        //        bool fSuccess = false;
+        //        NativeMethods.SetLastErrorEx(0, 0);
 
-                Logging.LogLineIf(fDebugTrace, "About to call SetForegroundWindow:");
-                fSuccess = NativeMethods.SetForegroundWindow(iphWnd);
-                int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-                Logging.LogLineIf(fDebugTrace, "SetForegroundWindow returned bool: " + fSuccess + ", GetLastError() returned: " + error.ToString());
-            }
-            else
-            {
-                Logging.LogLineIf(fDebugTrace, "   Doing nothing, because fConstructorHasCompleted = " + 
-                    fConstructorHasCompleted + ", fFormLoadHasCompleted = " + fFormLoadHandlerHasCompleted +
-                    ", fShownHandlerHasCompleted = fShownHandlerHasCompleted" + fShownHandlerHasCompleted);
-            }
+        //        Logging.LogLineIf(fDebugTrace, "About to call SetForegroundWindow:");
+        //        fSuccess = NativeMethods.SetForegroundWindow(iphWnd);
+        //        int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
+        //        Logging.LogLineIf(fDebugTrace, "SetForegroundWindow returned bool: " + fSuccess + ", GetLastError() returned: " + error.ToString());
+        //    }
+        //    else
+        //    {
+        //        Logging.LogLineIf(fDebugTrace, "   Doing nothing, because fConstructorHasCompleted = " + 
+        //            fConstructorHasCompleted + ", fFormLoadHasCompleted = " + fFormLoadHandlerHasCompleted +
+        //            ", fShownHandlerHasCompleted = fShownHandlerHasCompleted" + fShownHandlerHasCompleted);
+        //    }
 
-            Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_Activated(): exiting.");
-        }
+        //    Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_Activated(): exiting.");
+        //}
 
-        private void miniControlPanelForm_Deactivate(object sender, EventArgs e)
-        {
-            Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_Deactivate(): entered.");
-            Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_Deactivate(): exiting.");
-        }
+        //private void miniControlPanelForm_Deactivate(object sender, EventArgs e)
+        //{
+        //    Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_Deactivate(): entered.");
+        //    Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_Deactivate(): exiting.");
+        //}
 
         #endregion Form Events and Overrides
     }

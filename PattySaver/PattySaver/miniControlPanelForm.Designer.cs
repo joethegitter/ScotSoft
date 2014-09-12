@@ -45,8 +45,6 @@
             this.Name = "miniControlPanelForm";
             this.ShowIcon = false;
             this.ShowInTaskbar = false;
-            this.Activated += new System.EventHandler(this.miniControlPanelForm_Activated);
-            this.Deactivate += new System.EventHandler(this.miniControlPanelForm_Deactivate);
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.miniControlPanelForm_FormClosing);
             this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.miniControlPanelForm_FormClosed);
             this.Load += new System.EventHandler(this.miniControlPanelForm_Load);
