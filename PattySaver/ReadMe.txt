@@ -1,6 +1,6 @@
 Read Me
 
-Last updated Aug 30th.
+Last updated Sep 12th.
 
 Here is how our overall architecture now works
 ----------------------------------------------
@@ -93,6 +93,12 @@ received, and the command line it is passing to the exe.
    You can open this window from the Screen Saver window by hitting F9. 
    Hitting F9 again hides/shows it. When you close the debugOutputWindow, 
    it is destroyed, and hitting F9 again recreates it.
+
+   To use the debugOutputWindow in the control panel, use the methods
+   described above for the miniControlPanelForm. For the control panel
+   version of the Settings dialog, hold down Control to start the
+   buffer at launch, and then click the Choose Metadata button to open
+   the debugOutput window.
 
 
 
