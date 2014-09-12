@@ -5,10 +5,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-using ScotSoft.PattySaver;
-using ScotSoft.PattySaver.LaunchManager;
-using ScotSoft.PattySaver.DebugUtils;
-
 namespace ScotSoft.PattySaver.DebugUtils
 {
     public interface IDebugOutputConsumer
@@ -90,6 +86,14 @@ namespace ScotSoft.PattySaver.DebugUtils
 
 
         static private string strBuffer = "";
+
+        static public string Buffer
+        {
+            get
+            {
+                return strBuffer;
+            }
+        }
 
         public enum LogDestination
         {

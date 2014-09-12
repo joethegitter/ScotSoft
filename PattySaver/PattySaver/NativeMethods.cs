@@ -74,6 +74,10 @@ namespace ScotSoft.PattySaver
             GW_ENABLEDPOPUP = 6
         }
 
+
+        [DllImport("user32.dll", SetLastError = true)]
+        internal static extern IntPtr GetTopWindow(IntPtr hWnd);
+
         // This static method is required because legacy OSes do not support SetWindowLongPtr
         internal static IntPtr SetWindowLongPtr(HandleRef hWnd, int nIndex, IntPtr dwNewLong)
         {
@@ -92,6 +96,25 @@ namespace ScotSoft.PattySaver
                 return GetWindowLongPtr64(hWnd, nIndex);
             else
                 return GetWindowLongPtr32(hWnd, nIndex);
+        }
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, ExactSpelling = true, SetLastError = true)]
+        internal static extern IntPtr GetAncestor(IntPtr hWnd, GetAncestorFlags flags);
+
+        internal enum GetAncestorFlags
+        {
+            /// <summary>
+            /// Retrieves the parent window. This does not include the owner, as it does with the GetParent function.
+            /// </summary>
+            GetParent = 1,
+            /// <summary>
+            /// Retrieves the root window by walking the chain of parent windows.
+            /// </summary>
+            GetRoot = 2,
+            /// <summary>
+            /// Retrieves the owned root window by walking the chain of parent and owner windows returned by GetParent.
+            /// </summary>
+            GetRootOwner = 3
         }
 
         [DllImport("user32.dll", EntryPoint = "SetWindowLong", SetLastError = true)]
