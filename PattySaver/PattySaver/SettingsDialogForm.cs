@@ -107,6 +107,7 @@ namespace ScotSoft.PattySaver
 
         #endregion Constructors
 
+
         #region Form Events
 
         private void Settings_Load(object sender, EventArgs e)

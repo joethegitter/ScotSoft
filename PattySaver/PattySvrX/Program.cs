@@ -19,8 +19,20 @@ namespace PattySvrX
     static class Program
     {
 
+        // Use this "Path" to have the stub launch the development version of 
+        // PattySaver.exe from your development directory.  Otherwise, leave 
+        // it blank, and the stub will expect to find PattSaver.exe in the 
+        // same dir as the stub.
+
+#if USE_JOE_DEV_DIR
+        public const string PATH = @"C:\Users\LocallyMe\Source\Repos\ScotSoft\PattySaver\PattySaver\bin\Debug\"; 
+#elif USE_SCOT_DEV_DIR
+        public const string PATH = @"C:\"; 
+#else
+        public const string PATH = "";
+#endif
+
         // Filename to launch
-        public const string PATH = @"C:\Users\LocallyMe\Source\Repos\ScotSoft\PattySaver\PattySaver\bin\Debug\";
         public const string TARGET_BASE = "PattySaver";
         public const string TARGET_EXT = ".exe";
         public const string TARGET = PATH + TARGET_BASE+TARGET_EXT;

@@ -61,7 +61,6 @@ namespace ScotSoft.PattySaver
         /// </summary>
         /// <param name="hWnd">IntPtr conversion of long-based hWnd passed to us by Windows, along with the /p parameter.</param>
         public miniControlPanelForm(IntPtr hWnd)
-
         {
             fConstructorIsRunning = true;
             fDebugTrace = fDebugOuput && fDebugOutputAtTraceLevel;
@@ -115,13 +114,6 @@ namespace ScotSoft.PattySaver
         /// our form and quit the Application.
         /// </summary>
         /// <param name="m">Message being sent to our Window.</param>
-        /// <remarks>This is required because when a form is used to present 
-        /// the "mini-preview" window in the Screen Saver Control Panel, that
-        /// form does NOT receive the normal Close, Closed, Closing events
-        /// expected in a .Net app. Instead, Windows sends WM_DESTROY messages 
-        /// to the form each time it removes that window from the Control Panel. 
-        /// So we close the app each time that occurs. Note also the work we have
-        /// done for NC_PAINT.</remarks>
         protected override void WndProc(ref Message m)
         {
             bool fverbose = true;
@@ -135,7 +127,7 @@ namespace ScotSoft.PattySaver
 
             switch ((int)m.Msg)
             {
-                case ((int)0x0002):   // WM_DESTROY
+                case ((int)0x0002):   // WM_DESTROY - this is now "Just In Case".  We may not need it at all.
                     if (!this.Disposing && !this.IsDisposed && fShownHandlerHasCompleted && !fClosingHandlerIsRunning && !fClosingHandlerHasCompleted)
                     {
                         Logging.LogLineIf(fDebugTrace, "* WndProc(): WM_DESTROY received. Calling this.Close().");
@@ -145,18 +137,6 @@ namespace ScotSoft.PattySaver
                     }
                     break;
 
-                //case ((int)0x85):     // NC_PAINT - we use this to detect that user has switched sceen savers
-                //    if ((int)m.WParam == 1)
-                //    {
-                //        if (!this.Disposing && !this.IsDisposed && fShownHandlerHasCompleted && !fClosingHandlerIsRunning && !fClosingHandlerHasCompleted)
-                //        {
-                //            Logging.LogLineIf(fDebugTrace, "Received dreaded NC_PAINT, fleeing in terror.");
-                //            this.Close();
-                //            return;
-                //        }
-                //    }
-                //    break;
-
                 default:
                     base.WndProc(ref m);
                     break;
@@ -164,7 +144,10 @@ namespace ScotSoft.PattySaver
             }
         }
 
-        // Override of the CreateParams property, so that we can add "child window" as a Style when queried
+        /// <summary>
+        /// Override of the CreateParams property. We override so we can add "WS_CHILD" to the Style each
+        /// time it is queried.
+        /// </summary>
         protected override CreateParams CreateParams
         {
             get
@@ -184,22 +167,8 @@ namespace ScotSoft.PattySaver
             }
         }
 
-
-        ///// <summary>
-        ///// Override of ShowWithoutActivation property.  In theory, this tells
-        ///// Windows that when our window gets shown, it should not receive activation.
-        ///// </summary>
-        //protected override bool ShowWithoutActivation
-        //{
-        //    get
-        //    {
-        //        Logging.LogLineIf(fDebugTrace, "ShowWithoutActivation property accessed, returning true.");
-        //        return true;
-        //    }
-        //}
-
         /// <summary>
-        /// This code runs after constructor, but before form is displayed.
+        /// This code runs after the constructor, but before form is displayed.
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -221,7 +190,7 @@ namespace ScotSoft.PattySaver
             }
 
             // Kick off the disk scan, so we can start a slideshow
-            Logging.LogLineIf(fDebugTrace, "ScreenSaverForm_Load(): creating MainFiles, should kick off disk scan.");
+            Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Load(): creating MainFiles, should kick off disk scan.");
             MainFiles = new MainFileInfoSource(
                 (List<DirectoryInfo>)SettingsInfo.GetListOfDirectoryInfo(),
                 SettingsInfo.GetBlacklistedFullFilenames(),
@@ -245,80 +214,8 @@ namespace ScotSoft.PattySaver
             Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Load(): exiting.");
         }
 
-        private void MiniPreviewDrawImageFile()
-        {
-            // Because the mini-preview is not interactive, we don't need to use DrawNextImage and DrawPreviousImage,
-            // or keep a history of files shown. So, we use this stripped down version of DrawImageFile, instead of 
-            // what FullScreen uses.
-
-            // Get the filename
-            string filename = null;
-            FileInfo fi = MainFiles.GetNextFile();
-            if (fi != null)
-            {
-                filename = fi.FullName;
-            }
-
-            if (filename != null)           // if null, then there were no graphics files in any of the users directories
-            {
-                if (File.Exists(filename)) // if file missing or filename was mangled, just do nothing, wait for next filename
-                {
-                    if (currentImage != null && !fShowingEmbeddedImage) currentImage.Dispose();
-
-                    try
-                    {
-                        if (currentImage != null) currentImage.Dispose();
-
-                        // generate the image and store it in a private field
-                        currentImage = Image.FromFile(filename);
-
-                        // point picturebox at that field
-                        BackgroundImage = currentImage;
-                    }
-                    catch (Exception)
-                    {
-                        // Do nothing
-                    }
-                }
-            }
-            else    // For now, do nothing. We may show the embedded "noimage" resource later
-            {
-                fShowingEmbeddedImage = true;
-                currentImage = PattySaverResources.noimage;
-                BackgroundImage = currentImage;
-            }
-        }
-
-        void miniSlideshowTimer_Tick(object sender, EventArgs e)
-        {
-            MiniPreviewDrawImageFile();
-        }
-
-        void tock_Tick(object sender, EventArgs e)
-        {
-            // if this method has been called, it's because we want the 
-            // debug ouput window to pop up (ie, it can't be called directly
-            // because there is no user UX - miniPreview mode, essentially)
-
-            Logging.LogLineIf(fDebugTrace, "tock_Tick(): entered.");
-            tock.Stop();
-
-            Logging.LogLineIf(fDebugTrace, "   tock_Tick(): creating debugOutputWindow:");
-
-            debugOutputWindow = new ScrollingTextWindow(this);
-            debugOutputWindow.CopyTextToClipboardOnClose = true;
-            debugOutputWindow.ShowDisplay();
-
-            Logging.LogLineIf(fDebugTrace, "  tock_Tick(): Killing timer.");
-            tock.Tick -= tock_Tick;
-            tock.Dispose();
-            tock = null;
-
-            Logging.LogLineIf(fDebugTrace, "tock_Tick(): exiting.");
-        }
-
         /// <summary>
-        /// This event occurs immediately after the form is displayed for the first time.
+        /// This code runs immediately after the form is displayed for the first time.
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -327,22 +224,16 @@ namespace ScotSoft.PattySaver
             fShownHandlerIsRunning = true;
             Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_Shown(): entered.");
 
-            //// We want to avoid our little form getting "focus" or stealing the
-            //// Activated look from the Control Panel. So, first time we are shown,
-            //// immediately set our parent window to be the foreground window
-            //bool fSuccess = false;
-            //NativeMethods.SetLastErrorEx(0, 0);
-            //Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Shown(): About to call SetForegroundWindow:");
-            //fSuccess = NativeMethods.SetForegroundWindow(iphWnd);
-            //int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-            //Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Shown(): SetForegroundWindow returned bool: " + fSuccess + ", GetLastError() returned: " + error.ToString());
-
             Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_Shown(): exiting.");
-
             fShownHandlerIsRunning = false;
             fShownHandlerHasCompleted = true;
         }
 
+        /// <summary>
+        /// This code runs when the form learns it is about to Close, but before it has Closed.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void miniControlPanelForm_FormClosing(object sender, FormClosingEventArgs e)
         {
             fClosingHandlerIsRunning = true;
@@ -368,6 +259,11 @@ namespace ScotSoft.PattySaver
             fClosingHandlerIsRunning = false;
         }
 
+        /// <summary>
+        /// This code runs once the Form has Closed, but before it is Disposed/Destroyed.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void miniControlPanelForm_FormClosed(object sender, FormClosedEventArgs e)
         {
             Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_FormClosed(): entered, calling Application.Exit()");
@@ -375,36 +271,98 @@ namespace ScotSoft.PattySaver
             Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_FormClosed(): exiting.");
         }
 
-        //private void miniControlPanelForm_Activated(object sender, EventArgs e)
-        //{
-        //    Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_Activated(): entering.");
-
-        //    if (fConstructorHasCompleted && fFormLoadHandlerHasCompleted && fShownHandlerHasCompleted)
-        //    {
-        //        bool fSuccess = false;
-        //        NativeMethods.SetLastErrorEx(0, 0);
-
-        //        Logging.LogLineIf(fDebugTrace, "About to call SetForegroundWindow:");
-        //        fSuccess = NativeMethods.SetForegroundWindow(iphWnd);
-        //        int error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-        //        Logging.LogLineIf(fDebugTrace, "SetForegroundWindow returned bool: " + fSuccess + ", GetLastError() returned: " + error.ToString());
-        //    }
-        //    else
-        //    {
-        //        Logging.LogLineIf(fDebugTrace, "   Doing nothing, because fConstructorHasCompleted = " + 
-        //            fConstructorHasCompleted + ", fFormLoadHasCompleted = " + fFormLoadHandlerHasCompleted +
-        //            ", fShownHandlerHasCompleted = fShownHandlerHasCompleted" + fShownHandlerHasCompleted);
-        //    }
-
-        //    Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_Activated(): exiting.");
-        //}
-
-        //private void miniControlPanelForm_Deactivate(object sender, EventArgs e)
-        //{
-        //    Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_Deactivate(): entered.");
-        //    Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_Deactivate(): exiting.");
-        //}
-
         #endregion Form Events and Overrides
+
+
+        #region Methods called by Form and Control Events
+
+        /// <summary>
+        /// The code used to draw each picture on the mini Form.
+        /// </summary>
+        private void MiniPreviewDrawImageFile()
+        {
+            // Because the mini-preview is not interactive, images are only drawn
+            // automatically, and going forward through list. So we can use a very
+            // stripped down version of our navigation model.
+
+            // Get the filename
+            string filename = null;
+            FileInfo fi = MainFiles.GetNextFile();
+            if (fi != null)
+            {
+                filename = fi.FullName;
+            }
+
+            if (filename != null)           // if null, then there were no graphics files in any of the users directories
+            {
+                if (File.Exists(filename)) // if file missing or filename was mangled, just do nothing, wait for next filename
+                {
+                    if (currentImage != null && !fShowingEmbeddedImage) currentImage.Dispose();
+
+                    try
+                    {
+                        // dispose of the old image
+                        if (currentImage != null) currentImage.Dispose();
+
+                        // generate the image and store it in a private field
+                        currentImage = Image.FromFile(filename);
+
+                        // point picturebox at that field
+                        BackgroundImage = currentImage;
+                    }
+                    catch (Exception)
+                    {
+                        // Do nothing
+                    }
+                }
+            }
+            else    // show the embedded "no image" image
+            {
+                fShowingEmbeddedImage = true;
+                currentImage = PattySaverResources.noimage;
+                BackgroundImage = currentImage;
+            }
+        }
+
+        /// <summary>
+        /// Code called when the slide show timer goes off, to draw a new picture.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        void miniSlideshowTimer_Tick(object sender, EventArgs e)
+        {
+            MiniPreviewDrawImageFile();
+        }
+
+        /// <summary>
+        /// Code called when tock Timer goes off, to create and show the debug output window.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        void tock_Tick(object sender, EventArgs e)
+        {
+            // if this method has been called, it's because we want the 
+            // debug ouput window to pop up (ie, it can't be called directly
+            // because there is no user UX - miniPreview mode, essentially)
+
+            Logging.LogLineIf(fDebugTrace, "tock_Tick(): entered.");
+            tock.Stop();
+
+            Logging.LogLineIf(fDebugTrace, "   tock_Tick(): creating debugOutputWindow:");
+
+            debugOutputWindow = new ScrollingTextWindow(this);
+            debugOutputWindow.CopyTextToClipboardOnClose = true;
+            debugOutputWindow.ShowDisplay();
+
+            Logging.LogLineIf(fDebugTrace, "  tock_Tick(): Killing timer.");
+            tock.Tick -= tock_Tick;
+            tock.Dispose();
+            tock = null;
+
+            Logging.LogLineIf(fDebugTrace, "tock_Tick(): exiting.");
+        }
+
+        #endregion Methods called by Form and Control Events
+
     }
 }
