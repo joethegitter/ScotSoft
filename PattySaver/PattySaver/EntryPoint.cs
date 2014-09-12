@@ -64,7 +64,8 @@ namespace ScotSoft.PattySaver
             //    MessageBoxButtons.OK, MessageBoxIcon.Information);
 #endif
 
-            // Scan command line for debug logging and debug hosting options and set them
+            // Do a Quick and Dirty Scan of the command line for debug logging 
+            // and debug hosting options, and set them early.
             SetDebugOutputAndHostOptions();
 
             // Start logging
@@ -367,7 +368,7 @@ namespace ScotSoft.PattySaver
                 }
             }
 
-            // Now map launchMode string to LaunchMode
+            // Now map launchMode string to LaunchMode enum
             LaunchManager.Modes.LaunchModality LaunchMode = Modes.LaunchModality.Undecided;
 
             if (launchString == M_NO_MODE) LaunchMode = Modes.LaunchModality.ScreenSaverWindowed;
@@ -392,7 +393,7 @@ namespace ScotSoft.PattySaver
         private static void HandleUnofficialArguments(string [] mainArgs)
         {
             // TODO: rewrite to actually parse the args from System.Environment.CommandLine.  We're being incredibly lazy here.
-            // Remember that /usebuffer will have been consumed already, so disregard it
+            // Remember that /startbuffer will have been consumed already, so disregard it
         }
 
 
@@ -484,6 +485,8 @@ namespace ScotSoft.PattySaver
             {
                 ScreenSaverForm screensaver = new ScreenSaverForm(screen.Bounds);
                 screensaver.Show();
+                // TODO: test this.  Can we really keep calling Application.Run? Or should we just put forms
+                // on each screen, then have a single Application.Run() call?
                 Application.Run(screensaver);
             }
         }
@@ -514,7 +517,7 @@ namespace ScotSoft.PattySaver
 
                 int error = 0;
 
-                // Get the root owner of the passed hWnd
+                // Get the root owner window of the passed hWnd
                 Logging.LogLineIf(fDebugTrace, "  ShowSettings(): Getting Root Ancestor: calling GetAncestor(hWnd, GetRoot)...");
                 NativeMethods.SetLastErrorEx(0, 0);
                 IntPtr passedWndRoot = NativeMethods.GetAncestor(hWnd, NativeMethods.GetAncestorFlags.GetRoot);
@@ -577,7 +580,7 @@ namespace ScotSoft.PattySaver
                 Logging.LogLineIf(fDebugTrace, "      GetLastError() returned: " + error.ToString());
                 Logging.LogLineIf(fDebugTrace, " ");
 
-                // Verify if the form now has the expected new parent.
+                // Verify that the form now has the expected new parent.
                 Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Verifying new parent: Calling GetParent(" + DecNHex(preview.Handle) + ")...");
                 NativeMethods.SetLastErrorEx(0, 0);
                 IntPtr verifyParent = NativeMethods.GetParent(preview.Handle);
@@ -586,7 +589,7 @@ namespace ScotSoft.PattySaver
                 Logging.LogLineIf(fDebugTrace, "      GetLastError() returned: " + error.ToString());
                 Logging.LogLineIf(fDebugTrace, " ");
 
-                // Set the size of the form to the size of the passed hWnd
+                // Set the size of the form to the size of the parent window (using the passed hWnd)
                 System.Drawing.Rectangle ParentRect = new System.Drawing.Rectangle();
                 NativeMethods.SetLastErrorEx(0, 0);
                 Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Calling GetClientRect(" + DecNHex(hWnd) + ")...");
@@ -655,7 +658,9 @@ namespace ScotSoft.PattySaver
             Exception e = ea.Exception;
 
             string caption = "Hey, contact Scot, and tell him...";
-            string instructions = "We've encountered an unexpected 'thread exception'. If you click OK we will try to continue, but we may crash. If you click 'Cancel', we will terminate the program." + Environment.NewLine + Environment.NewLine;
+            string instructions = "We've encountered an unexpected 'thread exception'. " +
+                "If you click OK we will try to continue, but we may crash. " + 
+                "If you click 'Cancel', we will terminate the program." + Environment.NewLine + Environment.NewLine;
             string strSender = sender.ToString() + Environment.NewLine;
             string details = "Exception Message: " + e.Message + Environment.NewLine + Environment.NewLine;
             string details2 = "Stack Trace: " + Environment.NewLine;
@@ -666,7 +671,11 @@ namespace ScotSoft.PattySaver
             }
             catch { }
             string body = instructions + strSender + details + details2 + stackTrace;
+
+            // Sometimes the dialog cannot be presented before termination.
+            // Just in case, copy the text to clipboard...
             Clipboard.SetText(body);
+            // And log it...
             Logging.LogLineIf(fDebugTrace, body);
 
             DialogResult dr = MessageBox.Show(body, caption, MessageBoxButtons.OKCancel, MessageBoxIcon.Exclamation);
@@ -707,7 +716,11 @@ namespace ScotSoft.PattySaver
             }
             catch { }
             string body = instructions + strSender + details + details2 + stackTrace;
+
+            // Sometimes the dialog cannot be presented before termination.
+            // Just in case, copy the text to clipboard...
             Clipboard.SetText(body);
+            // And log it...
             Logging.LogLineIf(fDebugTrace, body);
 
             DialogResult dr;
@@ -721,15 +734,12 @@ namespace ScotSoft.PattySaver
                 dr = MessageBox.Show(body, caption, MessageBoxButtons.OKCancel, MessageBoxIcon.Exclamation);
             }
 
-            dr = MessageBox.Show(body, caption, MessageBoxButtons.OKCancel, MessageBoxIcon.Exclamation);
-
             if (ea.IsTerminating)
             {
                 // do nothing
             }
             else
             {
-
                 if (dr == DialogResult.Cancel)
                 {
                     Application.Exit();
