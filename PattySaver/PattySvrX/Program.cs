@@ -18,7 +18,6 @@ namespace PattySvrX
 
     static class Program
     {
-
         // Use this "Path" to have the stub launch the development version of 
         // PattySaver.exe from your development directory.  Otherwise, leave 
         // it blank, and the stub will expect to find PattSaver.exe in the 
