@@ -290,11 +290,27 @@ namespace ScotSoft.PattySaver
             // and have the creating form get the event.
             if (this.Owner != null)
             {
+#if MIPROTOTYPE
+                JKSoft.CP_Preview x = this.Owner as JKSoft.CP_Preview;
+                if (x != null)
+                {
+                    x.debugOutputWindow = null;
+                }
+#elif SCOTSOFTSS
                 ScreenSaverForm x = this.Owner as ScreenSaverForm;
                 if (x != null)
                 {
                     x.debugOutputWindow = null;
                 }
+
+#elif SIPROTOTYPE
+                SingleInstanceScreenSaver.CP_Preview x = this.Owner as SingleInstanceScreenSaver.CP_Preview;
+                if (x != null)
+                {
+                    x.debugOutputWindow = null;
+                }
+
+#endif
             }
         }
 
