@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 
 using ScotSoft.PattySaver;
-using ScotSoft.PattySaver.LaunchManager;
 using ScotSoft.PattySaver.DebugUtils;
 
 namespace ScotSoft.PattySaver
