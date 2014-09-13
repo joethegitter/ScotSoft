@@ -303,7 +303,7 @@ namespace ScotSoft.PattySaver
                 }
 
 #elif SIPROTOTYPE
-                SingleInstanceScreenSaver.CP_Preview x = this.Owner as SingleInstanceScreenSaver.CP_Preview;
+                SingleInstanceScreenSaver.CP_PreviewForm x = this.Owner as SingleInstanceScreenSaver.CP_PreviewForm;
                 if (x != null)
                 {
                     x.debugOutputWindow = null;
