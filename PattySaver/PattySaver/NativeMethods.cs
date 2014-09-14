@@ -280,6 +280,8 @@ namespace ScotSoft.PattySaver
 
         }
 
+
+
         public static class ExtendedWindowStyles
         {
 
