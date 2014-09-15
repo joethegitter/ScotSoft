@@ -8,7 +8,9 @@ using System.ComponentModel;
 
 namespace PattySvrX
 {
-    // 1. This is a stub .scr file. It launches our real exe.
+    // 1. This is a stub .scr file. Windows thinks that it is our screen saver;
+    //    in reality, it is just a little stub that launches our executable
+    //    with the appropriate arguments.
     // 2. Although it is a WinForms project, it contains no forms, just the
     //    Main() method. (Using a Console project as a stub causes unacceptable
     //    flashing of the console window.)
@@ -16,12 +18,12 @@ namespace PattySvrX
     //    us by Windows, capture the keyboard state, and then launch our exe
     //    with new command line args based on the old args plus keyboard state.
 
-    static class Program
+    static class StubScr
     {
-        // Use this "Path" to have the stub launch the development version of 
-        // PattySaver.exe from your development directory.  Otherwise, leave 
-        // it blank, and the stub will expect to find PattSaver.exe in the 
-        // same dir as the stub.
+        // Use this "Path" constant to have the stub launch the development 
+        // version of PattySaver.exe from your development directory.  
+        // Otherwise, leave it empty, and the stub will expect to find 
+        // PattSaver.exe in the same dir as the stub.
 
 #if USE_JOE_DEV_DIR
         public const string PATH = @"C:\Users\LocallyMe\Source\Repos\ScotSoft\PattySaver\PattySaver\bin\Debug\"; 
@@ -31,20 +33,25 @@ namespace PattySvrX
         public const string PATH = "";
 #endif
 
-        // Filename to launch
+        // Filename the stub will launch
         public const string TARGET_BASE = "PattySaver";
         public const string TARGET_EXT = ".exe";
         public const string TARGET = PATH + TARGET_BASE+TARGET_EXT;
 
-        // tells our exe to pop up debugOutputWindow on timer after launch
+        // Filename elements and command line arguments that tell our
+        // executable to pop up debugOutputWindow on a timer after launch.
         public const string FILE_DBGWIN = ".popdbgwin";
         public const string POPDBGWIN = @"/popdbgwin";
-        // tells our exe to start recording debug output in string buffer from the moment of launch 
+
+        // Filename elements and command line arguments that tell our
+        // executable to immediately start storing debug output in a 
+        // a buffer at launch (as opposed to when we open the 
+        // debugOutputWindow).
         public const string FILE_STARTBUFFER = ".startbuffer"; 
         public const string STARTBUFFER = @"/startbuffer";
 
-        // command line strings for launch modes
-        public const string FROMSTUB = @"/scr";                     // tells us that our exe was launched from our .scr stub
+        // Command line args that the stub will issue to our executable
+        public const string FROMSTUB = @"/scr";                     // tells us that our exe was launched from the stub
         public const string M_CP_CONFIGURE = @"/cp_configure";      // open settings dlg in control panel
         public const string M_CP_MINIPREVIEW = @"/cp_minipreview";  // open miniPreview form in control panel
         public const string M_DT_CONFIGURE = @"/dt_configure";      // open settings dlg on desktop
@@ -81,7 +88,8 @@ namespace PattySvrX
             if (Control.ModifierKeys == Keys.Shift) fShift = true;
             if (Control.ModifierKeys == Keys.Control) fControl = true;
 
-            // first check if the filename has been changed, in order to force post arguments
+            // RARE, but first priority: user can modify filename to get certain behaviors.
+            // Check if the filename has been changed, in order to force post arguments.
             string postArgs = "";
             if (Environment.GetCommandLineArgs()[0].ToLowerInvariant().Contains(FILE_DBGWIN.ToLowerInvariant()))
             {
@@ -97,7 +105,7 @@ namespace PattySvrX
                 }
             }
 
-            // if filename was not modified, check the keys held down at .scr launch
+            // If filename was not modified, check which keys were held down at .scr launch
             if (postArgs == "")
             {
                 // these are exclusive
@@ -105,13 +113,13 @@ namespace PattySvrX
                 if (fControl) postArgs += " " + STARTBUFFER;
             }
 
-            // now examine incoming args and build outgoing args
-            if (mainArgs.Length < 1)
+            // Examine incoming args and build outgoing args.
+            if (mainArgs.Length < 1) // no args
             {
                 // no args
                 mode = M_DT_CONFIGURE;
             }
-            else if (mainArgs.Length < 2)
+            else if (mainArgs.Length < 2) // 1 arg
             {
                 // can only be:
                 //  /S or 
@@ -131,7 +139,7 @@ namespace PattySvrX
                 }
 
             }
-            else if (mainArgs.Length < 3)
+            else if (mainArgs.Length < 3) // 2 args
             {
                 // can only be /P windowHandle
                 mode = M_CP_MINIPREVIEW;
@@ -143,14 +151,12 @@ namespace PattySvrX
                 throw new ArgumentException("CommandLine had more than 2 arguments, could not parse.");
             }
 
+            // Finish outgoing command line
             scrArgs = FROMSTUB + " " + mode;
-
             if (fHasWindowHandle)
             {
                 scrArgs = scrArgs + " -" + windowHandle;
             }
-
-            // Add postArg to scrArgs
             scrArgs += postArgs;
 
             // Decide whether to put up message box showing command line args.
@@ -183,7 +189,7 @@ namespace PattySvrX
                 proc.WaitForExit();
                 return;
             }
-            else
+            else  // in all other cases, fire and forget
             {
                 proc = System.Diagnostics.Process.Start(TARGET, scrArgs);
                 return;

@@ -19,29 +19,30 @@ namespace ScotSoft.PattySaver
         #region Fields
 
         // command line strings and file extensions
+        // SHARED: modify in stub also!
         public const string VSHOSTED = ".vshost";                   // string appended to our exe basename by VS when hosted
         public const string FROMSTUB = @"/scr";                     // tells us that our exe was launched from our .scr stub
         public const string POPDBGWIN = @"/popdbgwin";                    // pop up debugOutputWindow on timer after launch
         public const string STARTBUFFER = @"/startbuffer";          // place debug output in string buffer from the moment of launch
 
         // command line strings for launch modes
+        // SHARED: modify in stub also!
         public const string M_CP_CONFIGURE = @"/cp_configure";      // open settings dlg in control panel
         public const string M_CP_MINIPREVIEW = @"/cp_minipreview";  // open miniPreview form in control panel
         public const string M_DT_CONFIGURE = @"/dt_configure";      // open settings dlg on desktop
         public const string M_SCREENSAVER = @"/screensaver";        // open screenSaverForm
+
+        // not shared
         public const string M_NO_MODE = "no_mode";                  // open screenSaverForm in windowed mode
-
         public static List<string> scrArgs = new List<string>() { M_CP_CONFIGURE, M_CP_MINIPREVIEW, M_DT_CONFIGURE, M_SCREENSAVER};
-
         public const string OLDCONFIGURE = @"/c";                   //  same as M_DT_CONFIGURE - but we will ignore any window handles
         public const string OLDSCREENSAVER = @"/s";                 //  same M_SCREENSAVER 
-
         public static List<string> oldArgs = new List<string>() { OLDCONFIGURE, OLDSCREENSAVER };
 
         // debug output controllers
-        static bool fDebugOutput = true;                                    // controls whether any debug output is emitted
-        static bool fDebugOutputAtTraceLevel = true;                        // impacts the granularity of debug output
-        static bool fDebugTrace = fDebugOutput && fDebugOutputAtTraceLevel; // controls the granularity of debug output
+        static bool fDebugOutput = true;                                // controls whether any debug output is emitted
+        static bool fOutputAtTraceLevel = true;                         // impacts the granularity of debug output
+        static bool fDebugTrace = fDebugOutput && fOutputAtTraceLevel;  // controls the granularity of debug output
         
         #endregion Fields
 
@@ -60,7 +61,7 @@ namespace ScotSoft.PattySaver
 
 #if DEBUG
             // Uncomment the following lines and in DEBUG builds 
-            // we'll put up this dialog every time we launch, showing command line 
+            // we'll put up this dialog every time we launch, showing command line we received.
 
             //MessageBox.Show("CommandLine: " + Environment.CommandLine , Application.ProductName,
             //    MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -83,11 +84,11 @@ namespace ScotSoft.PattySaver
             if (Modes.fVSHOSTED) Logging.LogLineIf(fDebugOutput, "   Main(): process is hosted by Visual Studio.");
 
             // Process command line args and launch accordingly
-            ProcessCommandLineAndLaunch(mainArgs);
+            Logging.LogIf(fDebugTrace, "   Main(): calling ProcessCommandLineAndExecute()...");
+            ProcessCommandLineAndExecute(mainArgs);
 
             Logging.LogLineIf(fDebugTrace, "Main(): exiting.");
         }
-
 
         /// <summary>
         /// Scans command line options for debug logging and debug hosting options, and sets them accordingly.
@@ -138,8 +139,10 @@ namespace ScotSoft.PattySaver
         /// Parses command line options, sets modes, and calls the Launch Code 
         /// </summary>
         /// <param name="mainArgs"></param>
-        static void ProcessCommandLineAndLaunch(string[] mainArgs)
+        static void ProcessCommandLineAndExecute(string[] mainArgs)
         {
+            Logging.LogIf(fDebugTrace, "   ProcessCommandLineAndExecute(): calling ProcessCommandLineAndExecute()...");
+
             // The only args that this exe cares about are:
             // 1. no mode args passed = M_NO_MODE (open screensaver in last remembered non-ScreenSaverStyle window, with no Slideshow)
             // 2. /scr, which tells us that we were launched from the .scr stub,
@@ -178,6 +181,7 @@ namespace ScotSoft.PattySaver
                 // first argument must be /scr
                 if ((mainArgs.Length > 0) && (mainArgs[0].ToLowerInvariant() != @"/scr"))
                 {
+                    Logging.LogIf(fDebugTrace, @"  * ProcessCommandLineAndExecute(): /scr can only be the first argument.");
                     throw new ArgumentException(@"CommandLine: /scr can only be the first argument." + 
                     Environment.NewLine + Environment.CommandLine);
                 }
@@ -186,6 +190,7 @@ namespace ScotSoft.PattySaver
                 // second arg must be one of four valid /scr-related arguments
                 if ((mainArgs.Length > 1) && !scrArgs.Contains(mainArgs[1].ToLowerInvariant()))
                 {
+                    Logging.LogIf(fDebugTrace, @"  * ProcessCommandLineAndExecute(): /scr can only be followed by a valid /scr-related argument.");
                     throw new ArgumentException(@"CommandLine: /scr can only be followed by a valid /scr-related argument." +
                     Environment.NewLine + Environment.CommandLine);
                 }
@@ -208,18 +213,21 @@ namespace ScotSoft.PattySaver
                             }
                             else  // bad parse
                             {
+                                Logging.LogIf(fDebugTrace, @"  * ProcessCommandLineAndExecute(): invalid window handle passed: " + longCandidate);
                                 throw new ArgumentException(@"CommandLine: invalid window handle passed: " + longCandidate +
                                     Environment.NewLine + Environment.CommandLine);
                             }
                         }
                         else   // null or empty
                         {
-                            throw new ArgumentException(@"CommandLine: invalid window handle passed." +
+                            Logging.LogIf(fDebugTrace, @"  * ProcessCommandLineAndExecute(): null or empty window handle passed.");
+                            throw new ArgumentException(@"CommandLine: null or empty window handle passed." +
                                 Environment.NewLine + Environment.CommandLine);
                         }
                     }
                     else  // missing required sub argument
                     {
+                        Logging.LogIf(fDebugTrace, @"  * ProcessCommandLineAndExecute(): /cp_ argument missing required subargument.");
                         throw new ArgumentException(@"CommandLine: /cp_ argument missing required subargument." +
                             Environment.NewLine + Environment.CommandLine);
                     }
@@ -238,6 +246,7 @@ namespace ScotSoft.PattySaver
                         (mainArgs[lastProcessedIndex + 1].ToLowerInvariant() != STARTBUFFER))
                     {
                         string invalid = POPDBGWIN + " or " + STARTBUFFER;
+                        Logging.LogIf(fDebugTrace, @"  * ProcessCommandLineAndExecute(): " + invalid + " detected but not at valid index.");
                         throw new ArgumentException(@"CommandLine:" + invalid + " detected but not at valid index." +
                             Environment.NewLine + Environment.CommandLine);
                     }
@@ -249,6 +258,7 @@ namespace ScotSoft.PattySaver
                 {
                     if (mainArgs[lastProcessedIndex + 1].ToLowerInvariant() != POPDBGWIN)
                     {
+                        Logging.LogIf(fDebugTrace, @"  * ProcessCommandLineAndExecute(): " + POPDBGWIN + " detected but not at valid index.");
                         throw new ArgumentException(@"CommandLine:" + POPDBGWIN + " detected but not at valid index." +
                             Environment.NewLine + Environment.CommandLine);
                     }
@@ -260,11 +270,12 @@ namespace ScotSoft.PattySaver
                 // starting at lastProcessedIndex, there should be NO arguments
                 if ((mainArgs.Length - 1) > lastProcessedIndex)
                 {
+                    Logging.LogIf(fDebugTrace, @"  * ProcessCommandLineAndExecute(): " + POPDBGWIN + " detected but not at valid index.");
                     throw new ArgumentException(@"CommandLine: too many arguments past /scr." +
                         Environment.NewLine + Environment.CommandLine);
                 }
 
-                // by this point, our mode is in mainArgs[1] and hWnd is either IntPtr.Zero or a numerically validated hWnd.
+                // by this point, a valid mode is in mainArgs[1] and hWnd is either IntPtr.Zero or a numerically validated hWnd.
                 launchString = mainArgs[1].ToLowerInvariant();
             }
             else // we were not launched from .scr stub.
@@ -308,6 +319,7 @@ namespace ScotSoft.PattySaver
                         countOfscrArgsDetected > 1 ||
                         (countOfoldArgsDetected + countOfscrArgsDetected > 1))
                     {
+                        Logging.LogIf(fDebugTrace, @"  * ProcessCommandLineAndExecute(): only one scrArg allowed, or only one oldArg allowed, or scrArg and oldArg cannot be combined.");
                         throw new ArgumentException("CommandLine: only one scrArg allowed, or only one oldArg allowed, or scrArg and oldArg cannot be combined." +
                             Environment.NewLine + Environment.CommandLine);
                     }
@@ -327,6 +339,7 @@ namespace ScotSoft.PattySaver
                             else
                             {
                                 // mode argument was out of order.  Reject.
+                                Logging.LogIf(fDebugTrace, @"  * ProcessCommandLineAndExecute(): any mode argument must be the first argument.");
                                 throw new ArgumentException("CommandLine: any mode argument must be the first argument." +
                                     Environment.NewLine + Environment.CommandLine);
                             }
@@ -350,27 +363,29 @@ namespace ScotSoft.PattySaver
                                 }
                                 else  // bad parse
                                 {
+                                    Logging.LogIf(fDebugTrace, @"  * ProcessCommandLineAndExecute(): invalid window handle passed: " + longCandidate);
                                     throw new ArgumentException(@"CommandLine: invalid window handle passed: " + longCandidate +
                                         Environment.NewLine + Environment.CommandLine);
                                 }
                             }
                             else   // null or empty
                             {
-                                throw new ArgumentException(@"CommandLine: invalid window handle passed." +
+                                Logging.LogIf(fDebugTrace, @"  * ProcessCommandLineAndExecute(): null or empty window handle passed.");
+                                throw new ArgumentException(@"CommandLine: null or empty window handle passed." +
                                     Environment.NewLine + Environment.CommandLine);
                             }
                         }
                         else  // missing required sub argument
                         {
+                            Logging.LogIf(fDebugTrace, @"  * ProcessCommandLineAndExecute(): /cp_ argument missing required subargument.");
                             throw new ArgumentException(@"CommandLine: /cp_ argument missing required subargument." +
-                                    Environment.NewLine + Environment.CommandLine);
+                                Environment.NewLine + Environment.CommandLine);
                         }
                     }
-                    // by this point, our mode is in launchMode and hWnd is either IntPtr.Zero or a numerically validated hWnd.
                 }
             }
 
-            // Now map launchMode string to LaunchMode enum
+            // Now map launchString to LaunchMode enum
             LaunchManager.Modes.LaunchModality LaunchMode = Modes.LaunchModality.Undecided;
 
             if (launchString == M_NO_MODE) LaunchMode = Modes.LaunchModality.ScreenSaverWindowed;
@@ -383,7 +398,7 @@ namespace ScotSoft.PattySaver
             HandleUnofficialArguments(mainArgs);
 
             // Now launch us
-            Launch(LaunchMode, hWnd);
+            LaunchWindow(LaunchMode, hWnd);
         }
 
 
@@ -404,12 +419,12 @@ namespace ScotSoft.PattySaver
         /// </summary>
         /// <param name="LaunchMode"></param>
         /// <param name="hWnd"></param>
-        static void Launch(LaunchManager.Modes.LaunchModality LaunchMode, IntPtr hWnd)
+        static void LaunchWindow(LaunchManager.Modes.LaunchModality LaunchMode, IntPtr hWnd)
         {
-            Logging.LogLineIf(fDebugTrace, "Launch(): entered.");
+            Logging.LogLineIf(fDebugTrace, "LaunchWindow(): entered.");
 
             // Store away the actual command line for debugging purposes
-            Logging.LogLineIf(fDebugTrace, "   Launch(): Mode = " + LaunchMode.ToString());
+            Logging.LogLineIf(fDebugTrace, "   LaunchWindow(): Mode = " + LaunchMode.ToString());
 
 #if DEBUG
             // Uncomment the following lines and in DEBUG builds not attached to a debugger (ie, in Control Panel)
@@ -471,10 +486,10 @@ namespace ScotSoft.PattySaver
                 // In release, we'll just quietly fail here, and launch in Configure mode
                 ShowSettings();
 
-                Logging.LogLineIf(fDebugOutput, " ** Launch(): we fell through to Mode.Undecided, calling Application.Run().");
+                Logging.LogLineIf(fDebugOutput, " ** LaunchWindow(): we fell through to Mode.Undecided, calling Application.Run().");
                 Application.Run();
 
-                Logging.LogLineIf(fDebugTrace, "Launch(): exiting for realsies.");
+                Logging.LogLineIf(fDebugTrace, "LaunchWindow(): exiting for realsies.");
             }
         }
 
@@ -515,20 +530,20 @@ namespace ScotSoft.PattySaver
             if (NativeMethods.IsWindow(hWnd))
             {
                 Form settings = new Settings(hWnd);
-                ScrollingTextWindow debugOutputWindow = new ScrollingTextWindow(settings);
 
-                int error = 0;
+                // use Win32 API's to get the window handles we need for ShowModal
 
                 // Get the root owner window of the passed hWnd
+                int error = 0;
                 Logging.LogLineIf(fDebugTrace, "  ShowSettings(): Getting Root Ancestor: calling GetAncestor(hWnd, GetRoot)...");
                 NativeMethods.SetLastErrorEx(0, 0);
                 IntPtr passedWndRoot = NativeMethods.GetAncestor(hWnd, NativeMethods.GetAncestorFlags.GetRoot);
                 error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-                Logging.LogLineIf(fDebugTrace, "  ShowSettings(): GetAncestor() returned IntPtr: " + EntryPoint.DecNHex(passedWndRoot));
+                Logging.LogLineIf(fDebugTrace, "  ShowSettings(): GetAncestor() returned IntPtr: " + Logging.DecNHex(passedWndRoot));
                 Logging.LogLineIf(fDebugTrace, "      GetLastError() returned: " + error.ToString());
                 Logging.LogLineIf(fDebugTrace, " ");
 
-                // and show ourselves modal to that window
+                // and then show ourselves modal to that window
                 NativeMethods.WindowWrapper ww = new NativeMethods.WindowWrapper(passedWndRoot);
                 Logging.LogLineIf(fDebugTrace, "  ShowSettings(): calling ShowDialog().");
                 settings.ShowDialog(ww);
@@ -554,47 +569,50 @@ namespace ScotSoft.PattySaver
         static void ShowMiniPreview(IntPtr hWnd)
         {
             Logging.LogLineIf(fDebugTrace, "ShowMiniPreview(): Entered.");
-            Logging.LogLineIf(fDebugTrace, "   ShowMiniPreview(): hWnd = " + EntryPoint.DecNHex(hWnd));
+            Logging.LogLineIf(fDebugTrace, "   ShowMiniPreview(): hWnd = " + Logging.DecNHex(hWnd));
 
             if (NativeMethods.IsWindow(hWnd))
             {
-                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): calling miniControlPanelForm constructor with argument: " + DecNHex(hWnd) + " ...");
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): calling miniControlPanelForm constructor with argument: " + Logging.DecNHex(hWnd) + " ...");
                 miniControlPanelForm preview = new miniControlPanelForm(hWnd);
-                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Constructor returned. Window handle is: " + DecNHex(preview.Handle));
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Constructor returned. Window handle is: " + Logging.DecNHex(preview.Handle));
 
                 int error = 0;
 
+                // Use Win32 API's to connect our little form to the Control Panel window handles
+
                 //// Determine who the initial parent of our form is.
-                //Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Getting initial parent of form: Calling GetParent(" + DecNHex(preview.Handle) + ")...");
+                //Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Getting initial parent of form: Calling GetParent(" + Logging.DecNHex(preview.Handle) + ")...");
                 //NativeMethods.SetLastErrorEx(0, 0);
                 //IntPtr originalParent = NativeMethods.GetParent(preview.Handle);
                 //error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-                //Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): GetParent() returned IntPtr = " + DecNHex(originalParent));
+                //Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): GetParent() returned IntPtr = " + Logging.DecNHex(originalParent));
                 //Logging.LogLineIf(fDebugTrace, "      GetLastError() returned: " + error.ToString());
                 //Logging.LogLineIf(fDebugTrace, " ");
 
                 // Set the passed hWnd to be the parent of the form window.
-                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Changing parent of form to passed hWnd: Calling SetParent(" + DecNHex(preview.Handle) + ", " + DecNHex(hWnd) + ")...");
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Changing parent of form to passed hWnd: Calling SetParent(" + Logging.DecNHex(preview.Handle) + ", " + Logging.DecNHex(hWnd) + ")...");
                 NativeMethods.SetLastErrorEx(0, 0);
                 IntPtr newParent = NativeMethods.SetParent(preview.Handle, hWnd);
                 error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): SetParent() returned IntPtr = " + DecNHex(newParent));
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): SetParent() returned IntPtr = " + Logging.DecNHex(newParent));
                 Logging.LogLineIf(fDebugTrace, "      GetLastError() returned: " + error.ToString());
                 Logging.LogLineIf(fDebugTrace, " ");
 
                 // Verify that the form now has the expected new parent.
-                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Verifying new parent: Calling GetParent(" + DecNHex(preview.Handle) + ")...");
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Verifying new parent: Calling GetParent(" + Logging.DecNHex(preview.Handle) + ")...");
                 NativeMethods.SetLastErrorEx(0, 0);
                 IntPtr verifyParent = NativeMethods.GetParent(preview.Handle);
                 error = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): GetParent() returned IntPtr = " + DecNHex(verifyParent));
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): GetParent() returned IntPtr = " + Logging.DecNHex(verifyParent));
                 Logging.LogLineIf(fDebugTrace, "      GetLastError() returned: " + error.ToString());
                 Logging.LogLineIf(fDebugTrace, " ");
 
-                // Set the size of the form to the size of the parent window (using the passed hWnd)
+                // Set the size of the form to the size of the parent window (using the passed hWnd).
+                // Get the rect
                 System.Drawing.Rectangle ParentRect = new System.Drawing.Rectangle();
                 NativeMethods.SetLastErrorEx(0, 0);
-                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Calling GetClientRect(" + DecNHex(hWnd) + ")...");
+                Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): Calling GetClientRect(" + Logging.DecNHex(hWnd) + ")...");
                 bool fSuccess = NativeMethods.GetClientRect(hWnd, ref ParentRect);
                 Logging.LogLineIf(fDebugTrace, "  ShowMiniPreview(): GetClientRect() returned bool = " + fSuccess + ", rect = " + ParentRect.ToString());
                 Logging.LogLineIf(fDebugTrace, "      GetLastError() returned: " + error.ToString());
@@ -624,29 +642,8 @@ namespace ScotSoft.PattySaver
             Logging.LogLineIf(fDebugTrace, "ShowMiniPreview(): Exiting.");
         }
 
-        public static string DecNHex(int val)
-        {
-            return val.ToString("x") + "/" + val.ToString();
-        }
 
-        public static string DecNHex(long val)
-        {
-            return val.ToString("x") + "/" + val.ToString();
-        }
-
-        public static string DecNHex(IntPtr val)
-        {
-            return val.ToString("x") + "/" + val.ToString();
-        }
-
-        public static string DecNHex(HandleRef val)
-        {
-            return val.Handle.ToString("x") + "/" + val.Handle.ToString();
-        }
-
-
-
-
+        
         // ------------ Unhandled Exception Handlers Below Here ------------ //
 
 

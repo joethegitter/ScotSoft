@@ -160,11 +160,11 @@ namespace ScotSoft.PattySaver
 
                 // get the base params
                 CreateParams cp = base.CreateParams;
-                Logging.LogLineIf(fDebugTrace, "   CreateParams Property (override): base style equals: " + EntryPoint.DecNHex(cp.Style));
+                Logging.LogLineIf(fDebugTrace, "   CreateParams Property (override): base style equals: " + Logging.DecNHex(cp.Style));
 
                 // modify base params
                 cp.Style |= NativeMethods.WindowStyles.WS_CHILD;
-                Logging.LogLineIf(fDebugTrace, "   CreateParams Property (override): returning  modified style (base.CreateParams.Style |= WS_CHILD), which equals: " + EntryPoint.DecNHex(cp.Style));
+                Logging.LogLineIf(fDebugTrace, "   CreateParams Property (override): returning  modified style (base.CreateParams.Style |= WS_CHILD), which equals: " + Logging.DecNHex(cp.Style));
 
                 Logging.LogLineIf(fDebugTrace, "CreateParams Property (override): get accessor exiting.");
                 return cp;
