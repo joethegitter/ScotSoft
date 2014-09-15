@@ -5,9 +5,10 @@ using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using ScotSoft.PattySaver.DebugUtils;
-
 using System.Diagnostics;
+
+using JoeKCo.Utilities.Debug;
+
 
 namespace ScotSoft.PattySaver
 {

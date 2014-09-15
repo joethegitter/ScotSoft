@@ -8,7 +8,9 @@ using System.Runtime.InteropServices;
 
 using ScotSoft.PattySaver;
 using ScotSoft.PattySaver.LaunchManager;
-using ScotSoft.PattySaver.DebugUtils;
+
+using JoeKCo.Utilities;
+using JoeKCo.Utilities.Debug;
 
 namespace ScotSoft.PattySaver
 {

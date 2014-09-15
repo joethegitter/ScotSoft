@@ -10,8 +10,9 @@ using System.Drawing.Text;
 
 using ScotSoft;
 using ScotSoft.PattySaver;
-using ScotSoft.PattySaver.DebugUtils;
 using ScotSoft.PattySaver.LaunchManager;
+using JoeKCo.Utilities;
+using JoeKCo.Utilities.Debug;
 
 namespace ScotSoft.PattySaver
 {

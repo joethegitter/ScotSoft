@@ -19,7 +19,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>TRACE;DEBUG</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -49,7 +49,19 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DebugUtils.cs" />
+    <Compile Include="..\..\..\DebugUtils\DebugUtils\Logging.cs">
+      <Link>Logging.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\DebugUtils\DebugUtils\NativeMethods.cs">
+      <Link>NativeMethods.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\DebugUtils\DebugUtils\ScrollingTextWindow.cs">
+      <Link>ScrollingTextWindow.cs</Link>
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="..\..\..\DebugUtils\DebugUtils\ScrollingTextWindow.Designer.cs">
+      <Link>ScrollingTextWindow.Designer.cs</Link>
+    </Compile>
     <Compile Include="FileInfoSource.cs" />
     <Compile Include="FontData.cs">
       <SubType>Form</SubType>
@@ -73,7 +85,6 @@
     <Compile Include="miniControlPanelForm.Designer.cs">
       <DependentUpon>miniControlPanelForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="NativeMethods.cs" />
     <Compile Include="PattySaverResources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
@@ -86,12 +97,6 @@
     <Compile Include="ScreenSaverForm.Designer.cs">
       <DependentUpon>ScreenSaverForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="ScrollingTextWindow.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="ScrollingTextWindow.Designer.cs">
-      <DependentUpon>ScrollingTextWindow.cs</DependentUpon>
-    </Compile>
     <Compile Include="SettingsDialogForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -102,6 +107,9 @@
     <Compile Include="Slideshow.cs">
       <SubType>Form</SubType>
     </Compile>
+    <EmbeddedResource Include="..\..\..\DebugUtils\DebugUtils\ScrollingTextWindow.resx">
+      <Link>ScrollingTextWindow.resx</Link>
+    </EmbeddedResource>
     <EmbeddedResource Include="HelpAboutForm.resx">
       <DependentUpon>HelpAboutForm.cs</DependentUpon>
       <SubType>Designer</SubType>
@@ -128,9 +136,6 @@
     <EmbeddedResource Include="ScreenSaverForm.resx">
       <DependentUpon>ScreenSaverForm.cs</DependentUpon>
       <SubType>Designer</SubType>
-    </EmbeddedResource>
-    <EmbeddedResource Include="ScrollingTextWindow.resx">
-      <DependentUpon>ScrollingTextWindow.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="SettingsDialogForm.resx">
       <DependentUpon>SettingsDialogForm.cs</DependentUpon>

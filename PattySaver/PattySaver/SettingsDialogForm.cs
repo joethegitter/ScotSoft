@@ -11,8 +11,9 @@ using System.Runtime.InteropServices;
 
 using ScotSoft;
 using ScotSoft.PattySaver;
-using ScotSoft.PattySaver.DebugUtils;
 using ScotSoft.PattySaver.LaunchManager;
+using JoeKCo.Utilities;
+using JoeKCo.Utilities.Debug;
 
 
 namespace ScotSoft.PattySaver
@@ -295,7 +296,7 @@ namespace ScotSoft.PattySaver
         private void ChooseMetadata_Click(object sender, EventArgs e)
         {
             debugOutputWindow = new ScrollingTextWindow(this);
-            debugOutputWindow.CopyTextToClipboardOnClose = true;
+            debugOutputWindow.CopyWindowTextToClipboardOnClose = true;
             debugOutputWindow.ShowDisplay();
 
         }

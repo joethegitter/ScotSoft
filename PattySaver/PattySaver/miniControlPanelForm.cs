@@ -9,8 +9,10 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Runtime.InteropServices;
 using System.IO;
+
 using ScotSoft.PattySaver;
-using ScotSoft.PattySaver.DebugUtils;
+using JoeKCo.Utilities;
+using JoeKCo.Utilities.Debug;
 
 namespace ScotSoft.PattySaver
 {
@@ -50,6 +52,7 @@ namespace ScotSoft.PattySaver
         // hWnd of window to make our parent window
         IntPtr iphWnd;      // value is passed in the form constructor
 
+        delegate void myDel();
 
         #endregion Fields
 
@@ -99,6 +102,7 @@ namespace ScotSoft.PattySaver
             Logging.LogLineIf(fDebugTrace, "   miniControlPanelForm.ctor(): calling InitializeAndLoadConfigSettingsFromStorage()");
             SettingsInfo.InitializeAndLoadConfigSettingsFromStorage();            // Load configutation data from disk
 
+
             fConstructorIsRunning = false;
             fConstructorHasCompleted = true;
             Logging.LogLineIf(fDebugTrace, "miniControlPanelForm.ctor(): exiting.");
@@ -127,15 +131,15 @@ namespace ScotSoft.PattySaver
 
             switch ((int)m.Msg)
             {
-                case ((int)0x0002):   // WM_DESTROY - this is now "Just In Case".  We may not need it at all.
-                    if (!this.Disposing && !this.IsDisposed && fShownHandlerHasCompleted && !fClosingHandlerIsRunning && !fClosingHandlerHasCompleted)
-                    {
-                        Logging.LogLineIf(fDebugTrace, "* WndProc(): WM_DESTROY received. Calling this.Close().");
+                //case ((int)0x0002):   // WM_DESTROY - this is now "Just In Case".  We may not need it at all.
+                //    if (!this.Disposing && !this.IsDisposed && fShownHandlerHasCompleted && !fClosingHandlerIsRunning && !fClosingHandlerHasCompleted)
+                //    {
+                //        Logging.LogLineIf(fDebugTrace, "* WndProc(): WM_DESTROY received. Calling this.Close().");
 
-                        this.Close();
-                        return;
-                    }
-                    break;
+                //        this.Close();
+                //        return;
+                //    }
+                //    break;
 
                 default:
                     base.WndProc(ref m);
@@ -238,7 +242,7 @@ namespace ScotSoft.PattySaver
         {
             fClosingHandlerIsRunning = true;
 
-            Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_FormClosing(): entered, disposing of timers.");
+            Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_FormClosing(): entered, Reason: " + e.CloseReason.ToString());
 
             if (tock != null)
             {
@@ -351,7 +355,9 @@ namespace ScotSoft.PattySaver
             Logging.LogLineIf(fDebugTrace, "   tock_Tick(): creating debugOutputWindow:");
 
             debugOutputWindow = new ScrollingTextWindow(this);
-            debugOutputWindow.CopyTextToClipboardOnClose = true;
+            myDel aDel = new myDel(debugOutputWindowHasClosed);
+            debugOutputWindow.WindowHasClosedCallBack = aDel;
+            debugOutputWindow.CopyWindowTextToClipboardOnClose = true;
             debugOutputWindow.ShowDisplay();
 
             Logging.LogLineIf(fDebugTrace, "  tock_Tick(): Killing timer.");
@@ -360,6 +366,11 @@ namespace ScotSoft.PattySaver
             tock = null;
 
             Logging.LogLineIf(fDebugTrace, "tock_Tick(): exiting.");
+        }
+
+        public void debugOutputWindowHasClosed()
+        {
+            debugOutputWindow = null;
         }
 
         #endregion Methods called by Form and Control Events

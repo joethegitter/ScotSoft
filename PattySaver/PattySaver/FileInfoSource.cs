@@ -6,7 +6,9 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Threading;
 using System.Drawing;
-using ScotSoft.PattySaver.DebugUtils;
+
+using JoeKCo.Utilities;
+using JoeKCo.Utilities.Debug;
 
 namespace ScotSoft.PattySaver
 {
