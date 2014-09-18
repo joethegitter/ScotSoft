@@ -41,17 +41,13 @@ namespace ScotSoft.PattySaver
         public static List<string> oldArgs = new List<string>() { OLDCONFIGURE, OLDSCREENSAVER };
 
         // launch modalities (legacy)
-
         public static bool fVSHOSTED = false;
         public static bool fPopUpDebugOutputWindowOnTimer = false;
         public static bool fOpenInScreenSaverMode = true;
         public static bool fNoArgMode = true;
         public static bool fMaintainBuffer = false;
         public static bool fRunFromScreenSaverStub = false;
-
-
         public static LaunchModality LaunchMode = LaunchModality.Undecided;
-
         public enum LaunchModality
         {
             DT_Configure = 10, CP_Configure = 11, CP_MiniPreview = 20, ScreenSaver = 30, ScreenSaverWindowed = 40,
@@ -64,7 +60,6 @@ namespace ScotSoft.PattySaver
             /// </summary>
             NOLAUNCH = -1
         }
-
 
         // debug output controllers
         static bool fDebugOutput = true;                                // controls whether any debug output is emitted
