@@ -16,7 +16,6 @@ using System.Drawing.Text;
 using System.Diagnostics;
 
 using ScotSoft.PattySaver;
-using ScotSoft.PattySaver.LaunchManager;
 using JoeKCo.Utilities;
 using JoeKCo.Utilities.Debug;
 

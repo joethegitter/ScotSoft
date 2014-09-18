@@ -77,7 +77,6 @@
     <Compile Include="Input.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="LaunchManager.cs" />
     <Compile Include="EntryPoint.cs" />
     <Compile Include="miniControlPanelForm.cs">
       <SubType>Form</SubType>

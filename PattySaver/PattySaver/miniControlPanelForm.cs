@@ -184,7 +184,7 @@ namespace ScotSoft.PattySaver
             Logging.LogLineIf(fDebugTrace, "miniControlPanelForm_Load(): entered.");
 
             // Start a timer, so we can (optionally) show the debug window AFTER we've already shown the form
-            if (LaunchManager.Modes.fPopUpDebugOutputWindowOnTimer)
+            if (EntryPoint.fPopUpDebugOutputWindowOnTimer)
             {
                 Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Load(): Starting timer to pop up debug output window:");
                 tock = new Timer();

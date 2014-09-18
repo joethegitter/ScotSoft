@@ -7,7 +7,6 @@ using System.Threading;
 using System.Runtime.InteropServices;
 
 using ScotSoft.PattySaver;
-using ScotSoft.PattySaver.LaunchManager;
 
 using JoeKCo.Utilities;
 using JoeKCo.Utilities.Debug;
@@ -40,6 +39,32 @@ namespace ScotSoft.PattySaver
         public const string OLDCONFIGURE = @"/c";                   //  same as M_DT_CONFIGURE - but we will ignore any window handles
         public const string OLDSCREENSAVER = @"/s";                 //  same M_SCREENSAVER 
         public static List<string> oldArgs = new List<string>() { OLDCONFIGURE, OLDSCREENSAVER };
+
+        // launch modalities (legacy)
+
+        public static bool fVSHOSTED = false;
+        public static bool fPopUpDebugOutputWindowOnTimer = false;
+        public static bool fOpenInScreenSaverMode = true;
+        public static bool fNoArgMode = true;
+        public static bool fMaintainBuffer = false;
+        public static bool fRunFromScreenSaverStub = false;
+
+
+        public static LaunchModality LaunchMode = LaunchModality.Undecided;
+
+        public enum LaunchModality
+        {
+            DT_Configure = 10, CP_Configure = 11, CP_MiniPreview = 20, ScreenSaver = 30, ScreenSaverWindowed = 40,
+            /// <summary>
+            /// Lauch mode has not yet been established.
+            /// </summary>
+            Undecided = 0,
+            /// <summary>
+            /// App should not launch, see NoLaunchReason.
+            /// </summary>
+            NOLAUNCH = -1
+        }
+
 
         // debug output controllers
         static bool fDebugOutput = true;                                // controls whether any debug output is emitted
@@ -83,7 +108,7 @@ namespace ScotSoft.PattySaver
             Logging.LogIf(fDebugTrace, Environment.NewLine);
             Logging.LogLineIf(fDebugOutput, "   Main(): CommandLine was: " + Environment.CommandLine);
 
-            if (Modes.fVSHOSTED) Logging.LogLineIf(fDebugOutput, "   Main(): process is hosted by Visual Studio.");
+            if (fVSHOSTED) Logging.LogLineIf(fDebugOutput, "   Main(): process is hosted by Visual Studio.");
 
             // Process command line args and launch accordingly
             Logging.LogIf(fDebugTrace, "   Main(): calling ProcessCommandLineAndExecute()...");
@@ -105,28 +130,28 @@ namespace ScotSoft.PattySaver
             string[] EnvArgs = Environment.GetCommandLineArgs();
 
             // Determine if we are running hosted by Visual Studio.
-            Modes.fVSHOSTED = EnvArgs[0].ToLowerInvariant().Contains(VSHOSTED.ToLowerInvariant());
+            fVSHOSTED = EnvArgs[0].ToLowerInvariant().Contains(VSHOSTED.ToLowerInvariant());
 
             foreach (string arg in EnvArgs)
             {
                 // Determine if we were run from the screen saver stub
                 if (arg.ToLowerInvariant().Trim() == FROMSTUB)
                 {
-                    Modes.fRunFromScreenSaverStub = true;
+                    fRunFromScreenSaverStub = true;
                 }
 
                 // Determine if we need to maintain the debugOutput buffer
                 if (arg.ToLowerInvariant().Trim() == STARTBUFFER)
                 {
-                    Modes.fMaintainBuffer = true;
+                    fMaintainBuffer = true;
                 }
 
                 // Determine if we need to put up the debug output window after a timer goes off
                 // (for cases where there is no user interaction available, ie miniControlPanelForm)
                 if (arg.ToLowerInvariant().Trim() == POPDBGWIN)
                 {
-                    Modes.fPopUpDebugOutputWindowOnTimer = true;
-                    Modes.fMaintainBuffer = true;
+                    fPopUpDebugOutputWindowOnTimer = true;
+                    fMaintainBuffer = true;
                 }
             }
 
@@ -134,7 +159,7 @@ namespace ScotSoft.PattySaver
             if (!Logging.CannotLog()) Logging.AddLogDestination(Logging.LogDestination.Default);
 
             // If necessary, add the buffer to the logging destination list
-            if (Modes.fMaintainBuffer || Modes.fPopUpDebugOutputWindowOnTimer) Logging.AddLogDestination(Logging.LogDestination.Buffer);
+            if (fMaintainBuffer || fPopUpDebugOutputWindowOnTimer) Logging.AddLogDestination(Logging.LogDestination.Buffer);
         }
 
         /// <summary>
@@ -160,18 +185,18 @@ namespace ScotSoft.PattySaver
 
             // By the time we get to this method, the command line will have been scanned once by
             // SetDebugOutputAndHostOptions(), and certain LaunchManager.Modes will have been set:
-            //     1. Modes.fRunFromScreenSaverStub
-            //     2. Modes.VSHOSTED
-            //     3. Modes.fPopUp
-            //     4. Modes.fMaintainBuffer
+            //     1. fRunFromScreenSaverStub
+            //     2. VSHOSTED
+            //     3. fPopUp
+            //     4. fMaintainBuffer
 
             IntPtr hWnd = IntPtr.Zero;
             string launchString = M_SCREENSAVER;
          
             // First, handle only the very rigorous "we were launched from the scr stub" case.
-            // Note "/scr" was already detected, and noted in Modes.fRunFromScreenSaverStub
+            // Note "/scr" was already detected, and noted in fRunFromScreenSaverStub
             int lastProcessedIndex = -1;
-            if (Modes.fRunFromScreenSaverStub)  // set for us by SetDebugOutputAndHostOptions()
+            if (fRunFromScreenSaverStub)  // set for us by SetDebugOutputAndHostOptions()
             {
                 // Logic:
                 // A. If /scr exists, it must be first
@@ -242,7 +267,7 @@ namespace ScotSoft.PattySaver
 
                 // validate StartBuffer
                 bool DidProcess = false;
-                if (Modes.fMaintainBuffer)  // this was detected earlier
+                if (fMaintainBuffer)  // this was detected earlier
                 {
                     if ((mainArgs[lastProcessedIndex + 1].ToLowerInvariant() != POPDBGWIN) &&
                         (mainArgs[lastProcessedIndex + 1].ToLowerInvariant() != STARTBUFFER))
@@ -256,7 +281,7 @@ namespace ScotSoft.PattySaver
                 }
 
                 // validate POPDBGWIN
-                if (Modes.fPopUpDebugOutputWindowOnTimer)  // this was detected earlier
+                if (fPopUpDebugOutputWindowOnTimer)  // this was detected earlier
                 {
                     if (mainArgs[lastProcessedIndex + 1].ToLowerInvariant() != POPDBGWIN)
                     {
@@ -388,13 +413,13 @@ namespace ScotSoft.PattySaver
             }
 
             // Now map launchString to LaunchMode enum
-            LaunchManager.Modes.LaunchModality LaunchMode = Modes.LaunchModality.Undecided;
+            LaunchMode = LaunchModality.Undecided;
 
-            if (launchString == M_NO_MODE) LaunchMode = Modes.LaunchModality.ScreenSaverWindowed;
-            if (launchString == M_CP_CONFIGURE) LaunchMode = Modes.LaunchModality.CP_Configure;
-            if (launchString == M_CP_MINIPREVIEW) LaunchMode = Modes.LaunchModality.CP_MiniPreview;
-            if (launchString == M_DT_CONFIGURE) LaunchMode = Modes.LaunchModality.DT_Configure;
-            if (launchString == M_SCREENSAVER) LaunchMode = Modes.LaunchModality.ScreenSaver;
+            if (launchString == M_NO_MODE) LaunchMode = LaunchModality.ScreenSaverWindowed;
+            if (launchString == M_CP_CONFIGURE) LaunchMode = LaunchModality.CP_Configure;
+            if (launchString == M_CP_MINIPREVIEW) LaunchMode = LaunchModality.CP_MiniPreview;
+            if (launchString == M_DT_CONFIGURE) LaunchMode = LaunchModality.DT_Configure;
+            if (launchString == M_SCREENSAVER) LaunchMode = LaunchModality.ScreenSaver;
 
             // Handle any 'unofficial' arguments
             HandleUnofficialArguments(mainArgs);
@@ -418,7 +443,7 @@ namespace ScotSoft.PattySaver
         /// </summary>
         /// <param name="LaunchMode"></param>
         /// <param name="hWnd"></param>
-        static void LaunchWindow(LaunchManager.Modes.LaunchModality LaunchMode, IntPtr hWnd)
+        static void LaunchWindow(LaunchModality LaunchMode, IntPtr hWnd)
         {
             Logging.LogLineIf(fDebugTrace, "LaunchWindow(): entered.");
 
@@ -437,40 +462,37 @@ namespace ScotSoft.PattySaver
             //}
 #endif
 
-            // Store away LaunchMode for later reference
-            Modes.LaunchMode = LaunchMode;
-
             // Based on Launch Mode, show the correct window in the correct place
-            if (LaunchMode == Modes.LaunchModality.DT_Configure)
+            if (LaunchMode == LaunchModality.DT_Configure)
             {
                 ShowSettings();
             }
-            else if (LaunchMode == Modes.LaunchModality.CP_Configure)
+            else if (LaunchMode == LaunchModality.CP_Configure)
             {
                 ShowSettings(hWnd);
             }
-            else if (LaunchMode == Modes.LaunchModality.ScreenSaver)
+            else if (LaunchMode == LaunchModality.ScreenSaver)
             {
-                Modes.fOpenInScreenSaverMode = true;
+                fOpenInScreenSaverMode = true;
                 ShowScreenSaver();
             }
-            else if (LaunchMode == Modes.LaunchModality.ScreenSaverWindowed)
+            else if (LaunchMode == LaunchModality.ScreenSaverWindowed)
             {
-                Modes.fOpenInScreenSaverMode = false;
+                fOpenInScreenSaverMode = false;
                 ShowScreenSaver();
             }
-            else if (LaunchMode == Modes.LaunchModality.CP_MiniPreview)
+            else if (LaunchMode == LaunchModality.CP_MiniPreview)
             {
                 ShowMiniPreview(hWnd);
             }
-            else if (LaunchMode == Modes.LaunchModality.NOLAUNCH)
+            else if (LaunchMode == LaunchModality.NOLAUNCH)
             {
                 MessageBox.Show("Command: " + Environment.CommandLine + Environment.NewLine + Environment.NewLine +
                     "Sorry, an error prevented this screen saver from running.", Application.ProductName,
                     MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                 // since Application.Run was never called, exe will now terminate... // TODO: JOE: verify fallthough behavior
             }
-            else if (LaunchMode == Modes.LaunchModality.Undecided)
+            else if (LaunchMode == LaunchModality.Undecided)
             {
                 Logging.LogLineIf(fDebugOutput, "Error: Apparently we are still in LaunchMode == Undecided.");
 #if DEBUG

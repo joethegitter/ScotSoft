@@ -12,7 +12,6 @@ using System.IO;
 using System.Drawing.Text;
 
 using ScotSoft.PattySaver;
-using ScotSoft.PattySaver.LaunchManager;
 using JoeKCo.Utilities;
 using JoeKCo.Utilities.Debug;
 
@@ -146,7 +145,7 @@ namespace ScotSoft.PattySaver
             // set the style of our window (maximized, topmost, etc) appropriately
             Logging.LogLineIf(fDebugTrace, "   ScreenSaverForm_Load(): entering or exiting ScreenSaverWindowStyle, as appropriate.");
 
-            if (Modes.fOpenInScreenSaverMode)
+            if (EntryPoint.fOpenInScreenSaverMode)
             {
                 EnterScreenSaverWindowStyle();
             }
@@ -199,7 +198,7 @@ namespace ScotSoft.PattySaver
             DoPreviousOrNext(false);
 
             // if we opened in screen saver mode, start the slideshow
-            if (Modes.fOpenInScreenSaverMode) ourSlideshow.Start();
+            if (EntryPoint.fOpenInScreenSaverMode) ourSlideshow.Start();
 
             // set state flags
             fFormLoadIsRunning = false;

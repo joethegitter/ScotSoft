@@ -11,7 +11,6 @@ using System.Runtime.InteropServices;
 
 using ScotSoft;
 using ScotSoft.PattySaver;
-using ScotSoft.PattySaver.LaunchManager;
 using JoeKCo.Utilities;
 using JoeKCo.Utilities.Debug;
 
