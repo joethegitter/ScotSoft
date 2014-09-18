@@ -27,7 +27,7 @@ namespace ScotSoft.PattySaver
         bool fInputDebugOutput = true;
         bool fInputDebugOutputAtTraceLevel = false;
 
-        // do not change fInputDebugTrace here, it is calclated in each input method
+        // do not change fInputDebugTrace here, it is calculated in each input method
         bool fInputDebugTrace = true;
 
         #region Context Menu Event Handlers
@@ -377,7 +377,7 @@ namespace ScotSoft.PattySaver
         }
 
         /// <summary>
-        /// 
+        /// Event which occurs when a keypress comes back up. We use this very little.
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>

@@ -32,9 +32,11 @@ namespace ScotSoft.PattySaver
         public const string M_DT_CONFIGURE = @"/dt_configure";      // open settings dlg on desktop
         public const string M_SCREENSAVER = @"/screensaver";        // open screenSaverForm
 
-        // not shared
+        // not shared, but derived
+        public static List<string> scrArgs = new List<string>() { M_CP_CONFIGURE, M_CP_MINIPREVIEW, M_DT_CONFIGURE, M_SCREENSAVER };
+
+        // not shared at all
         public const string M_NO_MODE = "no_mode";                  // open screenSaverForm in windowed mode
-        public static List<string> scrArgs = new List<string>() { M_CP_CONFIGURE, M_CP_MINIPREVIEW, M_DT_CONFIGURE, M_SCREENSAVER};
         public const string OLDCONFIGURE = @"/c";                   //  same as M_DT_CONFIGURE - but we will ignore any window handles
         public const string OLDSCREENSAVER = @"/s";                 //  same M_SCREENSAVER 
         public static List<string> oldArgs = new List<string>() { OLDCONFIGURE, OLDSCREENSAVER };
@@ -405,12 +407,9 @@ namespace ScotSoft.PattySaver
         /// <summary>
         /// Handles any arguments on the command line that are not 'official' screen saver arguments.
         /// </summary>
-        /// <param name="countOfOfficialArgsConsumed">Number of arguments at beginning of command line to ignore, as they were used as 'official' args.</param>
-        /// <remarks>For each unoficial argument understood, various state variables will be set, for later consumption.</remarks>
         private static void HandleUnofficialArguments(string [] mainArgs)
         {
-            // TODO: rewrite to actually parse the args from System.Environment.CommandLine.  We're being incredibly lazy here.
-            // Remember that /startbuffer will have been consumed already, so disregard it
+            // TODO: write this when we have unofficial args.
         }
 
 
@@ -502,8 +501,9 @@ namespace ScotSoft.PattySaver
             {
                 ScreenSaverForm screensaver = new ScreenSaverForm(screen.Bounds);
                 screensaver.Show();
-                // TODO: test this.  Can we really keep calling Application.Run? Or should we just put forms
-                // on each screen, then have a single Application.Run() call?
+                // TODO: test this.  Do we really want to launch the application once
+                // for each screen, or just run multiple instances of the form in a single
+                // process?
                 Application.Run(screensaver);
             }
         }

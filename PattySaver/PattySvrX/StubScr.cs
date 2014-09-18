@@ -5,18 +5,21 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Runtime.InteropServices;
 using System.ComponentModel;
+using System.IO;
 
 namespace PattySvrX
 {
     // 1. This is a stub .scr file. Windows thinks that it is our screen saver;
-    //    in reality, it is just a little stub that launches our executable
-    //    with the appropriate arguments.
-    // 2. Although it is a WinForms project, it contains no forms, just the
-    //    Main() method. (Using a Console project as a stub causes unacceptable
-    //    flashing of the console window.)
+    //    in reality, it is just a little stub that launches our application
+    //    with the appropriate screen-saver related arguments.
+    // 2. Although this stub project is a WinForms project, it contains no 
+    //    forms, just the Main() method. We use a WinForms project instead of
+    //    a Console Project because the Console Project will flash up a console
+    //    window at startup.
     // 3. All this stub really does is capture the command line args passed to 
-    //    us by Windows, capture the keyboard state, and then launch our exe
-    //    with new command line args based on the old args plus keyboard state.
+    //    us by Windows, capture the keyboard state, capture the stub filename,
+    //    and then launch our application with new command line args based on
+    //    all of that captured data.
 
     static class StubScr
     {
@@ -38,24 +41,29 @@ namespace PattySvrX
         public const string TARGET_EXT = ".exe";
         public const string TARGET = PATH + TARGET_BASE+TARGET_EXT;
 
-        // Filename elements and command line arguments that tell our
+        // Filename elements, command line args and keystates that tell our
         // executable to pop up debugOutputWindow on a timer after launch.
         public const string FILE_DBGWIN = ".popdbgwin";
         public const string POPDBGWIN = @"/popdbgwin";
+        public static bool fShiftKeyOnly = false;
 
-        // Filename elements and command line arguments that tell our
+        // Filename elements, command line args and keystates that tell our
         // executable to immediately start storing debug output in a 
         // a buffer at launch (as opposed to when we open the 
         // debugOutputWindow).
         public const string FILE_STARTBUFFER = ".startbuffer"; 
         public const string STARTBUFFER = @"/startbuffer";
+        public static bool fControlKeyOnly = false;
 
-        // Command line args that the stub will issue to our executable
+        // Command line args that the stub will issue to our application
         public const string FROMSTUB = @"/scr";                     // tells us that our exe was launched from the stub
         public const string M_CP_CONFIGURE = @"/cp_configure";      // open settings dlg in control panel
         public const string M_CP_MINIPREVIEW = @"/cp_minipreview";  // open miniPreview form in control panel
         public const string M_DT_CONFIGURE = @"/dt_configure";      // open settings dlg on desktop
         public const string M_SCREENSAVER = @"/screensaver";        // open screenSaverForm
+
+        // Keystate that tells us to always show launch args
+        public static bool fAltKeyOnly = false;
 
         /// <summary>
         /// The main entry point for the stub.
@@ -81,12 +89,9 @@ namespace PattySvrX
 
             // Capture the state of the Shift key and Control Key and ALT keys at .scr launch.
             // Note that by using this method, key is only true if it's the ONLY modifier key held down.
-            bool fShift = false;
-            bool fControl = false;
-            bool fAlt = false;
-            if (Control.ModifierKeys == Keys.Alt) fAlt = true;
-            if (Control.ModifierKeys == Keys.Shift) fShift = true;
-            if (Control.ModifierKeys == Keys.Control) fControl = true;
+            if (Control.ModifierKeys == Keys.Alt) fAltKeyOnly = true;
+            if (Control.ModifierKeys == Keys.Shift) fShiftKeyOnly = true;
+            if (Control.ModifierKeys == Keys.Control) fControlKeyOnly = true;
 
             // RARE, but first priority: user can modify filename to get certain behaviors.
             // Check if the filename has been changed, in order to force post arguments.
@@ -109,8 +114,8 @@ namespace PattySvrX
             if (postArgs == "")
             {
                 // these are exclusive
-                if (fShift) postArgs += " " + POPDBGWIN;
-                if (fControl) postArgs += " " + STARTBUFFER;
+                if (fShiftKeyOnly) postArgs += " " + POPDBGWIN;
+                if (fControlKeyOnly) postArgs += " " + STARTBUFFER;
             }
 
             // Examine incoming args and build outgoing args.
@@ -163,7 +168,7 @@ namespace PattySvrX
             // Change fAlways to true if you want message box to pop up always.
             bool fAlways = false;
 
-            if (fAlt || fAlways)
+            if (fAltKeyOnly || fAlways)
             {
                 DialogResult dr = MessageBox.Show("Incoming cmdLine: " + System.Environment.CommandLine + Environment.NewLine + Environment.NewLine +
                     "Outgoing cmdLine: " + TARGET + " " + scrArgs + Environment.NewLine + Environment.NewLine +
@@ -179,9 +184,17 @@ namespace PattySvrX
                 }
             }
 
-            // In the M_CP_CONFIGURE case, we need to wait for the process to exit.
-            // Otherwise, Windows will immediately launch our Preview window again,
-            // and it won't update when the Configure dialog closes.
+            // Is the application there?
+            if (!File.Exists(TARGET))  // 
+            {
+                DialogResult dr = MessageBox.Show("File not found: " + TARGET,Application.ProductName, MessageBoxButtons.OK,MessageBoxIcon.Error);
+                return;
+            }
+
+            // In the M_CP_CONFIGURE case, we need to wait for the process to exit
+            // before we let the stub terminate. If we do not, Windows will 
+            // immediately launch our Preview window again while the Settings dialog
+            // is still up, and the Preview won't update when the Settings dialog closes.
             System.Diagnostics.Process proc = null;
             if (mode == M_CP_CONFIGURE)
             {
