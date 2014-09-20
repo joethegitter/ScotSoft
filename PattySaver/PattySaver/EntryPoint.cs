@@ -61,6 +61,8 @@ namespace ScotSoft.PattySaver
             NOLAUNCH = -1
         }
 
+        public static ScreenSaverForm pubScreenSaverForm;
+
         // debug output controllers
         static bool fDebugOutput = true;                                // controls whether any debug output is emitted
         static bool fOutputAtTraceLevel = true;                         // impacts the granularity of debug output
@@ -517,6 +519,7 @@ namespace ScotSoft.PattySaver
             foreach (Screen screen in Screen.AllScreens)
             {
                 ScreenSaverForm screensaver = new ScreenSaverForm(screen.Bounds);
+                pubScreenSaverForm = screensaver;
                 screensaver.Show();
                 // TODO: test this.  Do we really want to launch the application once
                 // for each screen, or just run multiple instances of the form in a single

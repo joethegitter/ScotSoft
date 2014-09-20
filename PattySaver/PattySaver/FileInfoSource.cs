@@ -23,16 +23,14 @@ namespace ScotSoft.PattySaver
         //
         bool fDebugOutput = true;
         bool fTraceLevelOutput = false;
-        bool fDebugTrace = false;  // do not modify this here, it is recalculated in each method
-        //
-        // IEqualityComparers that we'll use for finding files in _fileInfoList or in _blacklistedFileInfoList
-        private IEqualityComparer<KeyValuePair<DateTime, string>> BlackListFilenameComparer = new BlacklistFullFilenameComparer();
-        private IEqualityComparer<FileInfo> FullFilenameComparer = new FileInfoFullNameComparer();
+        bool fDebugTrace = false;  
         //
         // Data accessed through public members
         private IList<FileInfo> _fileInfoList = new List<FileInfo>();
+        private string[] _fileExtensions = new string[] { };
         private IList<String> _blacklistedFullFilenames = new List<String>();
         private int _currentIndex;
+        //
         private object lockGetFile = new object();
         private object lockIndex = new object();
 
@@ -45,7 +43,7 @@ namespace ScotSoft.PattySaver
         public Dictionary<string, Shell32.Folder> ShellDict = new Dictionary<string, Shell32.Folder>();
         //
         private IList<DirectoryInfo> _directories = new List<DirectoryInfo>();
-
+        //
         int _dbgCountOfDirsSkippedDuringInit = 0;
         int _dbgCountOfFilesSkippedDuringInit = 0;
         int _dbgTotal = 0;
@@ -55,7 +53,7 @@ namespace ScotSoft.PattySaver
 
         #region Constructors
 
-        public MainFileInfoSource(List<DirectoryInfo> Directories, List<String> BlacklistFullFilenames = null, bool UseRecursion = false, bool UseShuffle = false)
+        public MainFileInfoSource(List<DirectoryInfo> Directories, string[] FileExtensions, List<String> BlacklistFullFilenames = null, bool UseRecursion = false, bool UseShuffle = false)
         {
             if (Directories == null || Directories.Count < 1)
             {
@@ -69,14 +67,14 @@ namespace ScotSoft.PattySaver
 #endif
                 throw new ArgumentException("Directories == null || Directories.Count < 1");
             }
-
-            initializeFileInfoList(Directories, BlacklistFullFilenames, UseRecursion, UseShuffle);
+            this._fileExtensions = FileExtensions;
+            initializeFileInfoList(Directories, FileExtensions, BlacklistFullFilenames, UseRecursion, UseShuffle);
         }
 
         #endregion Constructors
 
 
-        #region Public Methods
+        #region Public Methods and Properties
 
         #region PMP Common To Both Implementations
 
@@ -216,6 +214,16 @@ namespace ScotSoft.PattySaver
 
         #endregion PMP Common To Both Implementations
 
+
+        public string[] FileExtensions
+        {
+            get
+            {
+                return (string[])_fileExtensions.Clone();
+            }
+        }
+
+
         /// <summary>
         /// Rebuilds the object internally, preserving the existing blacklist, and adding any additional blacklist files.
         /// </summary>
@@ -223,7 +231,7 @@ namespace ScotSoft.PattySaver
         /// <param name="BlacklistFullFilenames">Optional.</param>
         /// <param name="UseRecursion"></param>
         /// <param name="UseShuffle"></param>
-        public void Rebuild(List<DirectoryInfo> Directories, List<String> BlacklistFullFilenames = null, bool UseRecursion = false, bool UseShuffle = false)
+        public void Rebuild(List<DirectoryInfo> Directories, string[] FileExtensions, List<String> BlacklistFullFilenames = null, bool UseRecursion = false, bool UseShuffle = false)
         {
             lock (lockGetFile)
             {
@@ -242,13 +250,13 @@ namespace ScotSoft.PattySaver
                         throw new ArgumentException("Directories == null || Directories.Count < 1");
                     }
 
-                    initializeFileInfoList(Directories, BlacklistFullFilenames, UseRecursion, UseShuffle, true);
+                    initializeFileInfoList(Directories, FileExtensions, BlacklistFullFilenames, UseRecursion, UseShuffle, true);
                 }
             }
 
         }
 
-        #endregion Public Methods
+        #endregion Public Methods and Properties
 
 
         #region Private Methods
@@ -706,9 +714,8 @@ namespace ScotSoft.PattySaver
         /// <summary>
         /// Initializes the Files list.
         /// </summary>
-        private void initializeFileInfoList(List<DirectoryInfo> Directories, List<String> BlacklistedFullFilenames, bool UseRecursion, bool UseShuffle, bool Rebuild = false)
+        private void initializeFileInfoList(List<DirectoryInfo> Directories, string[] FileExtensions, List<String> BlacklistedFullFilenames, bool UseRecursion, bool UseShuffle, bool Rebuild = false)
         {
-
             // Called from either the constructor or from Rebuild().
             // If called from Rebuild, the original blacklist is preserved.
             Logging.LogLineIf(fDebugOutput, "initializeFileInfoList(): Beginning Filescan, building _fileInfoList.");
@@ -748,7 +755,7 @@ namespace ScotSoft.PattySaver
             // start a List of Lists that we'll eventually concatenate together
             List<IList<FileInfo>> LoL = new List<IList<FileInfo>>();
 
-            // An IEnumerable customComparer we'll for eliminating duplicates from the FutureFiles list
+            // An IEnumerable customComparer we'll use for eliminating duplicates from the FutureFiles list
             IEqualityComparer<FileInfo> FileInfoComparer = new FileInfoFullNameComparer();
 
             // for each dir in _directories, get it's files list, either shallowly or recursively
@@ -763,7 +770,7 @@ namespace ScotSoft.PattySaver
                     {   // Traverse and IsImageFile are Method Extensions from our code, GetDirectoryInfosWithoutThrowing
                         // and GetDirectoryInfosWithoutThrowing are methods from our code.
                         // Shell.Folders are added to dictionary in GetDirectoryInfosWithoutThrowing.
-                        _iEnumerableFileInfo = new[] { _directories[i] }.Traverse(dir => GetDirectoryInfosWithoutThrowing(dir)).SelectMany(dir => GetFileInfosWithoutThrowing(dir).IsImageFile());
+                        _iEnumerableFileInfo = new[] { _directories[i] }.Traverse(dir => getDirectoryInfosWithoutThrowing(dir)).SelectMany(dir => getFileInfosWithoutThrowing(dir).FilterByFileExtension(FileExtensions));
                         Logging.LogLineIf(fDebugOutput, "     Recursion of " + _directories[i] + " and below:" + Environment.NewLine +
                             "     Directories skipped so far (Access Violations, errors): " + _dbgCountOfDirsSkippedDuringInit + Environment.NewLine +
                             "     Individual Files skipped: " + _dbgCountOfFilesSkippedDuringInit + Environment.NewLine +
@@ -784,14 +791,17 @@ namespace ScotSoft.PattySaver
                 {
                     try
                     {
-                        // IsImageFile() is a Method Extension from our code.  GetFiles() is a system call.
-                        _iEnumerableFileInfo = _directories[i].GetFiles().IsImageFile();
+                        // FilterByFileExtension(FileExtensions)() is a Method Extension from our code.  GetFiles() is a system call.
+                        _iEnumerableFileInfo = _directories[i].GetFiles().FilterByFileExtension(FileExtensions);
 
                         // for each directory, add the Folder object which contains the extended file attributes for all of the files therein
                         Shell32.Folder objFolder;
 
                         objFolder = GlobalShell.NameSpace(_directories[i].FullName);
-                        ShellDict.Add(_directories[i].FullName, objFolder);
+                        if (!ShellDict.ContainsKey(_directories[i].FullName))
+                        {
+                            ShellDict.Add(_directories[i].FullName, objFolder);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -868,7 +878,7 @@ namespace ScotSoft.PattySaver
             {
                 stpSequential.Reset();
                 stpSequential.Start();
-                ShuffleAFileInfoList(_fileInfoList);
+                shuffleAFileInfoList(_fileInfoList);
                 stpSequential.Stop();
 
                 Logging.LogLineIf(fDebugOutput, "     Time taken to Shuffle _fileInfoList: " + stpSequential.ElapsedMilliseconds.ToString() + " milliseconds.");
@@ -895,7 +905,7 @@ namespace ScotSoft.PattySaver
         /// <param name="dir">DirectoryInfo of directory to enumerate.</param>
         /// <returns>If not successful, returns an empty enumerable (test for Enumerable.Empty).</returns>
         /// </summary>
-        private IEnumerable<DirectoryInfo> GetDirectoryInfosWithoutThrowing(DirectoryInfo dir)
+        private IEnumerable<DirectoryInfo> getDirectoryInfosWithoutThrowing(DirectoryInfo dir)
         {
             // a logline here is safe, Access Violation exception doesn't occur until GetDirectories
             try
@@ -928,7 +938,7 @@ namespace ScotSoft.PattySaver
         /// </summary>
         /// <param name="dir">Directory to be enumerated.</param>
         /// <returns>Enumerable list of FileInfo.</returns>
-        private IEnumerable<FileInfo> GetFileInfosWithoutThrowing(DirectoryInfo dir)
+        private IEnumerable<FileInfo> getFileInfosWithoutThrowing(DirectoryInfo dir)
         {
             try
             {
@@ -946,7 +956,7 @@ namespace ScotSoft.PattySaver
         /// Shuffles the values in a list of FileInfos.
         /// </summary>
         /// <param name="fileInfos"></param>
-        private static void ShuffleAFileInfoList(IList<FileInfo> fileInfos)
+        private static void shuffleAFileInfoList(IList<FileInfo> fileInfos)
         {
             for (var i = 0; i < fileInfos.Count; i++)
                 fileInfos.Swap(i, ThreadSafeRandom.ThisThreadsRandom.Next(i, fileInfos.Count));
@@ -1666,21 +1676,54 @@ namespace ScotSoft.PattySaver
         private void initializeFileInfoList()
         {
             Logging.LogLineIf(fDebugOutput, "ExploreThisFolder.initializeFileInfoList(): Entering method.");
+            bool fDoByDateTaken = EntryPoint.pubScreenSaverForm.fShiftDown;
+                
+            Logging.LogLineIf(fDebugOutput, "   ExploreThisFolder.initializeFileInfoList(): EntryPoint.pubScreenSaverForm.fShiftDown: " + fDoByDateTaken.ToString());
+
+            // Stop Watch
+            System.Diagnostics.Stopwatch stpRunning = new System.Diagnostics.Stopwatch();
+            System.Diagnostics.Stopwatch stpTotal = new System.Diagnostics.Stopwatch();
+
+            stpRunning.Start();
+            stpTotal.Start();
+
             _fileInfoList.Clear();
 
-            // this is where we would order by DateTaken, if we knew how to build an IComparer for it, handle blank values, etc.
-            IEnumerable<FileInfo> iEnumerableFileInfo = _directoryInfo.GetFiles().IsImageFile().OrderBy(c => c.FullName);
-            Logging.LogLineIf(fDebugOutput, "   ExploreThisFolder.initializeFileInfoList(): Initial count of Graphics files in directory: " + iEnumerableFileInfo.ToList().Count());
+            IEnumerable<FileInfo> iEnumerableFileInfo = null;
+            iEnumerableFileInfo = _directoryInfo.GetFiles().
+            FilterByFileExtension(_initializingMainFileInfoSource.FileExtensions);
+
+            Logging.LogLineIf(fDebugOutput, "   ExploreThisFolder.initializeFileInfoList(): time after initial gather: " + 
+                stpRunning.ElapsedMilliseconds.ToString() + " / " + stpTotal.ElapsedMilliseconds.ToString());
+            Logging.LogLineIf(fDebugOutput, "   ExploreThisFolder.initializeFileInfoList(): Initial count of Graphics files in directory: " + 
+                iEnumerableFileInfo.Count().ToString());
+            Logging.LogLineIf(fDebugOutput, "   ExploreThisFolder.initializeFileInfoList(): time after count: " + 
+                stpRunning.ElapsedMilliseconds.ToString() + " / " + stpTotal.ElapsedMilliseconds.ToString());
 
             // this is where we remove the files that are in the blacklist. We compare them to our parent MFIS' blacklist, not our own.
             // Scot: read this as iEnumerableFileInfo = all the fileinfo in iEnumerableFileInfo that are not contained in the blacklist of our parent MFIS.
             iEnumerableFileInfo = iEnumerableFileInfo.Where(c => !(_initializingMainFileInfoSource.BlacklistedFullFilenames.Contains(c.FullName)));
-            Logging.LogLineIf(fDebugOutput, "   ExploreThisFolder.initializeFileInfoList(): Count of files after removing blacklisted files: " + iEnumerableFileInfo.ToList().Count());
+            Logging.LogLineIf(fDebugOutput, "   ExploreThisFolder.initializeFileInfoList(): time after filtering blacklist out: " +
+                stpRunning.ElapsedMilliseconds.ToString() + " / " + stpTotal.ElapsedMilliseconds.ToString());
+            Logging.LogLineIf(fDebugOutput, "   ExploreThisFolder.initializeFileInfoList(): Count of files after removing blacklisted files: " +
+                iEnumerableFileInfo.Count().ToString());
+            Logging.LogLineIf(fDebugOutput, "   ExploreThisFolder.initializeFileInfoList(): time after count: " + 
+                stpRunning.ElapsedMilliseconds.ToString() + " / " + stpTotal.ElapsedMilliseconds.ToString());
 
             // this is where we force the enumeration of the whole list (by calling ToList), so that we have a nice static
             // list of Files, instead of an enumerator with deferred execution (a pointer to an item that promises to give
             // us files, one at a time, using the descriptions we've provided so far.)
-            _fileInfoList = iEnumerableFileInfo.ToList();
+
+            if (fDoByDateTaken)
+            {
+                _fileInfoList = iEnumerableFileInfo.OrderBy(c => Image.FromFile(c.FullName).GetSortableDateTaken()).ToList();
+            }
+            else
+            {
+                _fileInfoList = iEnumerableFileInfo.OrderBy(c => c.FullName).ToList();
+            }
+            Logging.LogLineIf(fDebugOutput, "   ExploreThisFolder.initializeFileInfoList(): time after forced enumeration: " +
+                stpRunning.ElapsedMilliseconds.ToString() + " / " + stpTotal.ElapsedMilliseconds.ToString());
 
             // now we find the file that was used to initialize us (used to enter ETF mode)
             // so that we can set the index back to that file
@@ -1726,6 +1769,13 @@ namespace ScotSoft.PattySaver
             {
                 Logging.LogLineIf(fDebugOutput, "   ExploreThisFolder.initializeFileInfoList(): BEWARE - _fileInfoList is NULL or EMPTY.");
             }
+            Logging.LogLineIf(fDebugOutput, "   ExploreThisFolder.initializeFileInfoList(): time after setting index: " +
+                stpRunning.ElapsedMilliseconds.ToString() + " / " + stpTotal.ElapsedMilliseconds.ToString());
+            stpRunning.Stop();
+            stpTotal.Stop();
+            stpRunning = null;
+            stpTotal = null;
+
         }
 
         #endregion Private Methods
@@ -1776,7 +1826,7 @@ namespace ScotSoft.PattySaver
 //        public static string[] GraphicFileExtensions = new string[] { ".png", ".bmp", ".gif", ".jpg", ".jpeg" };
 
 //        /// <summary>
-//        /// Retrieves the extensions from GraphicsFileExtensions as a single filter string.
+//        /// Retrieves the extensions from GraphicFileExtensions as a single filter string.
 //        /// </summary>
 //        /// <returns></returns>
 //        public static string GetGraphicFilesFilter()

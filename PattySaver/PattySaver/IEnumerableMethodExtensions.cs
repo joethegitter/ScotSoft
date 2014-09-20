@@ -9,7 +9,6 @@ namespace System.Collections.Generic
 {
     public static partial class IEnumerableMethodExtensions
     {
-
         public static string EllipsisString(this string rawString, int maxLength = 30, char delimiter = '\\')
         {
             maxLength -= 3; //account for delimiter spacing
@@ -59,27 +58,44 @@ namespace System.Collections.Generic
             return returnString;
         }
 
-        public static IEnumerable<FileInfo> IsImageFile(this IEnumerable<FileInfo> files,
-                            Predicate<FileInfo> isMatch)
-        {
-            foreach (FileInfo file in files)
-            {
-                if (isMatch(file))
-                    yield return file;
-            }
-        }
+        //public static IEnumerable<FileInfo> IsImageFile(this IEnumerable<FileInfo> files,
+        //                    Predicate<FileInfo> isMatch)
+        //{
+        //    foreach (FileInfo file in files)
+        //    {
+        //        if (isMatch(file))
+        //            yield return file;
+        //    }
+        //}
+
+        ///// <summary>
+        ///// Method Extension - specifies that FileInfo IEnumerable should only return files whose extension matches one in GraphicFileExtensions[]. 
+        ///// </summary>
+        ///// <param name="files"></param>
+        ///// <returns></returns>
+        //public static IEnumerable<FileInfo> IsImageFile(this IEnumerable<FileInfo> files)
+        //{
+        //    foreach (FileInfo file in files)
+        //    {
+        //        string ext = file.Extension.ToLower();
+        //        if (GraphicFileExtensions.Contains(ext))
+        //            yield return file;
+        //    }
+        //}
+
 
         /// <summary>
-        /// Method Extension - specifies that FileInfo IEnumerable should only return files whose extension matches one in GraphicFileExtensions[]. 
+        /// Method Extension - specifies that FileInfo IEnumerable should only return files whose extension matches one in extensions[]. 
         /// </summary>
         /// <param name="files"></param>
+        /// <param name="extensions"></param>
         /// <returns></returns>
-        public static IEnumerable<FileInfo> IsImageFile(this IEnumerable<FileInfo> files)
+        public static IEnumerable<FileInfo> FilterByFileExtension(this IEnumerable<FileInfo> files, string[] extensions)
         {
             foreach (FileInfo file in files)
             {
                 string ext = file.Extension.ToLower();
-                if (GraphicFileExtensions.Contains(ext))
+                if (extensions.Contains(ext))
                     yield return file;
             }
         }

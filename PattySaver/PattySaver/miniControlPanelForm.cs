@@ -43,8 +43,10 @@ namespace ScotSoft.PattySaver
         bool fShownHandlerIsRunning = false;
         bool fShownHandlerHasCompleted = false;
 
-        // Slideshow
+        // Slideshows
         MainFileInfoSource MainFiles;
+        public string[] GraphicFileExtensions =          // File extensions that we'll allow in our app
+            new string[] { ".png", ".bmp", ".gif", ".jpg", ".jpeg" };
         Timer miniSlideshowTimer;
         Image currentImage = null;
         bool fShowingEmbeddedImage = false;
@@ -197,6 +199,7 @@ namespace ScotSoft.PattySaver
             Logging.LogLineIf(fDebugTrace, "  miniControlPanelForm_Load(): creating MainFiles, should kick off disk scan.");
             MainFiles = new MainFileInfoSource(
                 (List<DirectoryInfo>)SettingsInfo.GetListOfDirectoryInfo(),
+                this.GraphicFileExtensions, 
                 SettingsInfo.GetBlacklistedFullFilenames(),
                 SettingsInfo.UseRecursion,
                 SettingsInfo.ShuffleMode);

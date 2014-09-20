@@ -32,15 +32,18 @@ namespace System.Drawing
         /// </summary>
         /// <param name="image">The image.</param>
         /// <returns>Nullable DateTime struct.</returns>
-        public static DateTime? GetDateTaken(this Image image)
+        public static DateTime? GetNullableDateTaken(this Image image)
         {
             try
             {
-                // this prevents the ArgumentException
-                if (!image.PropertyIdList.Contains<int>(0x9003)) return null;
+                PropertyItem propItem = null;
 
-                //DateTimeOriginal
-                PropertyItem propItem = image.GetPropertyItem(0x9003);
+                if (image.PropertyIdList.Contains<int>(0x9003))
+                {
+                    //DateTimeOriginal
+                    propItem = image.GetPropertyItem(0x9003);
+                }
+
                 // See also - DateTimeDigitized / CreateDate 0x9004
                 // .. TimeZoneOffset 0x882a & ModifyDate (DateTime) 0x0132
 
@@ -52,7 +55,16 @@ namespace System.Drawing
                     string firsthalf = sdate.Substring(0, 10);
                     firsthalf = firsthalf.Replace(":", "-");
                     sdate = firsthalf + secondhalf;
-                    return DateTime.Parse(sdate);
+                    DateTime newDT = new DateTime();
+                    if (DateTime.TryParse(sdate, out newDT))
+                    {
+                        return newDT;
+                    }
+                    else
+                    {
+                        Logging.LogLineIf(fDebugTrace, "   GetDateTaken(): PropertyItem could not be parsed as date. PropertyItem as string: " + sdate);
+                        return null;
+                    }
                 }
                 else
                 {
@@ -64,6 +76,57 @@ namespace System.Drawing
             {
                 Logging.LogLineIf(fDebugOutput, "GetDateTaken(): Exception thrown retrieving PropertyItem: " + ex.Message);
                 return null;
+            }
+        }
+        /// <summary>
+        /// Gets the date the image was taken, or DateTime.MinimumValue if null or invalid.
+        /// </summary>
+        /// <param name="image">The image.</param>
+        /// <returns>Nullable DateTime struct.</returns>
+        public static DateTime GetSortableDateTaken(this Image image)
+        {
+            try
+            {
+                PropertyItem propItem = null;
+
+                if (image.PropertyIdList.Contains<int>(0x9003))
+                {
+                    //DateTimeOriginal
+                    propItem = image.GetPropertyItem(0x9003);
+                }
+
+                // See also - DateTimeDigitized / CreateDate 0x9004
+                // .. TimeZoneOffset 0x882a & ModifyDate (DateTime) 0x0132
+
+                //Convert date taken metadata to a DateTime object
+                if (propItem != null)
+                {
+                    string sdate = Encoding.UTF8.GetString(propItem.Value).Replace("\0", String.Empty).Trim();
+                    string secondhalf = sdate.Substring(sdate.IndexOf(" "), (sdate.Length - sdate.IndexOf(" ")));
+                    string firsthalf = sdate.Substring(0, 10);
+                    firsthalf = firsthalf.Replace(":", "-");
+                    sdate = firsthalf + secondhalf;
+                    DateTime newDT = new DateTime();
+                    if (DateTime.TryParse(sdate, out newDT))
+                    {
+                        return newDT;
+                    }
+                    else
+                    {
+                        Logging.LogLineIf(fDebugTrace, "   GetSortableDateTaken(): PropertyItem could not be parsed as date. PropertyItem as string: " + sdate);
+                        return DateTime.MinValue;
+                    }
+                }
+                else
+                {
+                    Logging.LogLineIf(fDebugTrace, "   GetSortableDateTaken(): PropertyItem returned was null.");
+                    return DateTime.MinValue;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logging.LogLineIf(fDebugOutput, "GetSortableDateTaken(): Exception thrown retrieving PropertyItem: " + ex.Message);
+                return DateTime.MinValue;
             }
         }
 
@@ -97,10 +160,20 @@ namespace System.Drawing
                     //Convert date taken metadata to a DateTime object
                     string sdate = Encoding.UTF8.GetString(propDate.Value).Replace("\0", String.Empty).Trim();
                     sdate = sdate.Replace(":", "-");
-                    return DateTime.Parse(sdate + " " + stime);
+                    DateTime newDT = new DateTime();
+                    if (DateTime.TryParse(sdate, out newDT))
+                    {
+                        return newDT;
+                    }
+                    else
+                    {
+                        Logging.LogLineIf(fDebugTrace, "   GetGpsDateTimeStamp(): PropertyItem could not be parsed as date. PropertyItem as string: " + sdate);
+                        return null;
+                    }
                 }
                 else
                 {
+                    Logging.LogLineIf(fDebugTrace, "   GetGpsDateTimeStamp(): PropertyItem returned was null.");
                     return null;
                 }
 
@@ -123,7 +196,7 @@ namespace System.Drawing
             float? lon = GetLongitude(image);
             var dTs = GetGpsDateTimeStamp(image);
             var alt = GetAltitude(image);
-            var dTaken = GetDateTaken(image);
+            var dTaken = GetNullableDateTaken(image);
             var result = new GpsMetaData();
             if (lat.HasValue) result.Latitude = lat.Value;
             if (lon.HasValue) result.Longitude = lon.Value;

@@ -33,6 +33,8 @@ namespace ScotSoft.PattySaver
 
         // Objects which provide access to Files
         private MainFileInfoSource MainFiles;                   // Class we defined, object holding Main fileinfo list, with methods for manipulation thereof.
+        public string[] GraphicFileExtensions =          // File extensions that we'll allow in our app
+            new string[] { ".png", ".bmp", ".gif", ".jpg", ".jpeg" };
         private ExploreThisFolderFileInfoSource ETFFiles;       // Class we defined, object holding the current ETF fileinfo list. Null if we're not in that mode.
 
         // Form-Wide Modes and States
@@ -44,8 +46,8 @@ namespace ScotSoft.PattySaver
         private bool fFormClosingHasCompleted = true;           // the formClosing code has finished
         private bool fShowingEmbeddedFileImage;                 // we are showing an embedded resource, not a photo from file.                    
         private bool fInETFMode = false;                        // we are in ExploreThisFolder mode.
-        private bool fShiftDown = false;                        // the ShiftKey is down.  Probably should move to some kind of Keyboard State object...
-        private bool fCtrlDown = false;                         // the ControlKey is down. 
+        public bool fShiftDown = false;                        // the ShiftKey is down.  Probably should move to some kind of Keyboard State object...
+        public bool fCtrlDown = false;                         // the ControlKey is down. 
         private bool fWaitingForFileToLoad = false;             // we've started loading a file, but the loadcompleted event has not fired, and file is not drawn yet.
         private bool fScreenSaverWindowStyle = false;           // our window is maximized, topmost and not-resizable (or the opposite if false)
         private bool fWindowStyleIsChanging = false;            // tells us that we're in the middle of changing window styles
@@ -188,7 +190,8 @@ namespace ScotSoft.PattySaver
             // create the MainFiles object - this leaves the index pointed at -1
             Logging.LogLineIf(fDebugTrace, "   ScreenSaverForm_Load(): creating MainFiles, should kick off disk scan.");
             MainFiles = new MainFileInfoSource(
-                (List<DirectoryInfo>)SettingsInfo.GetListOfDirectoryInfo(), 
+                (List<DirectoryInfo>)SettingsInfo.GetListOfDirectoryInfo(),
+                this.GraphicFileExtensions, 
                 SettingsInfo.GetBlacklistedFullFilenames(), 
                 SettingsInfo.UseRecursion, 
                 SettingsInfo.ShuffleMode);
@@ -580,7 +583,7 @@ namespace ScotSoft.PattySaver
 
             // Next item, DateTaken
             // In this logic, we only add Date Taken if we can find a Date Taken value
-            DateTime? myDateTime = image.GetDateTaken();
+            DateTime? myDateTime = image.GetNullableDateTaken();
             if (myDateTime != null)
             {
                 DateTime myOtherDateTime = (DateTime)myDateTime;
@@ -1401,7 +1404,7 @@ namespace ScotSoft.PattySaver
                 fShowingDialog = false;
 
                 // User changed something that requires a rebuild of the file list.
-                MainFiles.Rebuild((List<DirectoryInfo>)SettingsInfo.GetListOfDirectoryInfo(), SettingsInfo.GetBlacklistedFullFilenames(), SettingsInfo.UseRecursion, SettingsInfo.ShuffleMode);
+                MainFiles.Rebuild((List<DirectoryInfo>)SettingsInfo.GetListOfDirectoryInfo(), GraphicFileExtensions, SettingsInfo.GetBlacklistedFullFilenames(), SettingsInfo.UseRecursion, SettingsInfo.ShuffleMode);
 
                 // Don't go back to an old stale pic. Force ourselves to get a new one.
                 DoPreviousOrNext(false);
