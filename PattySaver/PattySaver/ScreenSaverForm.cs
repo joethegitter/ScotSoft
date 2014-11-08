@@ -440,14 +440,14 @@ namespace ScotSoft.PattySaver
                     if (currentImageMetadata != null) currentImageMetadata = "Getting metadata...";
                     if (currentExploreFolderData != null) currentExploreFolderData = "Getting folder data...";
 
-                    // clear picture box
+                    // clear PictureBox control
                     pbMain.ImageLocation = String.Empty;
                     pbMain.Image = null;
 
                     // restore Zoom mode, if not already there
                     if (pbMain.SizeMode != PictureBoxSizeMode.Zoom) pbMain.SizeMode = PictureBoxSizeMode.Zoom;
 
-                    // set current data
+                    // set current metadata
                     currentImageMetadata = GetMetadata(file);      // yes, this does mean we are fetching the image twice,
                     // but if we don't, we won't draw the metadata until after the async
                     // file load, and that means text will pop onto screen after picture is drawn
@@ -486,6 +486,8 @@ namespace ScotSoft.PattySaver
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
+        /// <remarks>The LoadCompleted event fires when the PictureBox has finished loading the image from file. 
+        /// We handle this event here, and use it to track and set appropriate states.</remarks>
         private void pbMain_LoadCompleted(object sender, AsyncCompletedEventArgs e)
         {
             bool fDebugOutput = true;
@@ -519,8 +521,10 @@ namespace ScotSoft.PattySaver
             fWaitingForFileToLoad = false;
 
             // if the image is less than 1/3 of the picturebox both dimensions, change zoom mode to center
-            if ((pbMain.Image.PhysicalDimension.Height * 3 ) < pbMain.Height &&
-                (pbMain.Image.PhysicalDimension.Width * 3 ) < pbMain.Width) pbMain.SizeMode = PictureBoxSizeMode.CenterImage;
+            // so that a tiny image is not blown up full screen:
+
+            //if ((pbMain.Image.PhysicalDimension.Height * 3 ) < pbMain.Height &&
+                //(pbMain.Image.PhysicalDimension.Width * 3 ) < pbMain.Width) pbMain.SizeMode = PictureBoxSizeMode.CenterImage;
 
             Logging.LogLineIf(fDebugTrace, "pbMainPhoto_LoadCompleted(): exiting.");
         }
