@@ -32,8 +32,8 @@ namespace ScotSoft.PattySaver
         public ScrollingTextWindow debugOutputWindow = null;    // The debug output window, null if not in use
 
         // Objects which provide access to Files
-        private MainFileInfoSource MainFiles;                   // Class we defined, object holding Main fileinfo list, with methods for manipulation thereof.
-        public string[] GraphicFileExtensions =          // File extensions that we'll allow in our app
+        private MainFileInfoSource MainFiles;                   // Object holding Main fileinfo list, with methods for manipulation thereof.
+        public string[] GraphicFileExtensions =                 // File extensions that we'll allow in our app
             new string[] { ".png", ".bmp", ".gif", ".jpg", ".jpeg" };
         private ExploreThisFolderFileInfoSource ETFFiles;       // Class we defined, object holding the current ETF fileinfo list. Null if we're not in that mode.
 
@@ -46,8 +46,8 @@ namespace ScotSoft.PattySaver
         private bool fFormClosingHasCompleted = true;           // the formClosing code has finished
         private bool fShowingEmbeddedFileImage;                 // we are showing an embedded resource, not a photo from file.                    
         private bool fInETFMode = false;                        // we are in ExploreThisFolder mode.
-        public bool fShiftDown = false;                        // the ShiftKey is down.  Probably should move to some kind of Keyboard State object...
-        public bool fCtrlDown = false;                         // the ControlKey is down. 
+        public bool fShiftDown = false;                         // the ShiftKey is down.  Probably should move to some kind of Keyboard State object...
+        public bool fCtrlDown = false;                          // the ControlKey is down. 
         private bool fWaitingForFileToLoad = false;             // we've started loading a file, but the loadcompleted event has not fired, and file is not drawn yet.
         private bool fScreenSaverWindowStyle = false;           // our window is maximized, topmost and not-resizable (or the opposite if false)
         private bool fWindowStyleIsChanging = false;            // tells us that we're in the middle of changing window styles
@@ -926,20 +926,20 @@ namespace ScotSoft.PattySaver
         }
 
         /// <summary>
-        /// Called when user hits Up arrow key on keyboard.
+        /// Called when user attempts to Enter ETF Mode (mouse, keyboard, touch).
         /// </summary>
-        private void DoArrowKeyUp()
+        private void DoUserWantsToEnterETFMode()
         {
             bool fDebugOutput = true;
             bool fDebugOutputTraceLevel = false;
             bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
 
-            Logging.LogLineIf(fDebugTrace, "DoArrowKeyUp(): entered.");
+            Logging.LogLineIf(fDebugTrace, "DoUserWantsToEnterETFMode(): entered.");
 
             if (fWaitingForFileToLoad)
             {
                 // do nothing
-                Logging.LogLineIf(fDebugOutput, "   DoArrowKeyUp(): Ignoring key, still waiting for file to load.");
+                Logging.LogLineIf(fDebugOutput, "   DoUserWantsToEnterETFMode(): Ignoring key, still waiting for file to load.");
                 return;
             }
 
@@ -959,24 +959,24 @@ namespace ScotSoft.PattySaver
                 EnterExploreFolderMode();
             }
 
-            Logging.LogLineIf(fDebugTrace, "DoArrowKeyUp(): Exiting.");
+            Logging.LogLineIf(fDebugTrace, "DoUserWantsToEnterETFMode(): Exiting.");
         }
 
         /// <summary>
-        /// Called when user hits Down arrow key on keyboard.
+        /// Called when user attempts to Exit ETF Mode (mouse, keyboard, touch).
         /// </summary>
-        private void DoArrowKeyDown()
+        private void DoUserWantsToExitETFMode()
         {
             bool fDebugOutput = true;
             bool fDebugOutputTraceLevel = false;
             bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
 
-            Logging.LogLineIf(fDebugTrace, "DoArrowKeyDown(): entered.");
+            Logging.LogLineIf(fDebugTrace, "DoUserWantsToExitETFMode(): entered.");
 
             if (fWaitingForFileToLoad)
             {
                 // do nothing
-                Logging.LogLineIf(fDebugOutput, "   DoArrowKeyDown(): Ignoring key, still waiting for file to load.");
+                Logging.LogLineIf(fDebugOutput, "   DoUserWantsToExitETFMode(): Ignoring key, still waiting for file to load.");
                 return;
             }
 
@@ -995,19 +995,19 @@ namespace ScotSoft.PattySaver
 
                 EnterExploreFolderMode();
             }
-            Logging.LogLineIf(fDebugTrace, "DoArrowKeyDown(): Exiting.");
+            Logging.LogLineIf(fDebugTrace, "DoUserWantsToExitETFMode(): Exiting.");
         }
 
         /// <summary>
-        /// Called when user hits Left arrow key on keyboard.
+        /// Called when user attempts to defer advancing, or actually go back to previous photo (keyboard, mouse, touch).
         /// </summary>
-        private void DoArrowKeyLeft()
+        private void DoUserWantsToSeePreviousPhoto()
         {
             bool fDebugOutput = true;
             bool fDebugOutputTraceLevel = false;
             bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
 
-            Logging.LogLineIf(fDebugTrace, "DoArrowKeyLeft(): entered.");
+            Logging.LogLineIf(fDebugTrace, "DoUserWantsToSeePreviousPhoto(): entered.");
 
             // we need to either:
             // 0. If in a state where we should just ignore the key, do that
@@ -1018,22 +1018,22 @@ namespace ScotSoft.PattySaver
             if (fWaitingForFileToLoad)
             {
                 // do nothing
-                Logging.LogLineIf(fDebugOutput, "   DoArrowKeyLeft(): Ignoring key, still waiting for file to load.");
+                Logging.LogLineIf(fDebugOutput, "   DoUserWantsToSeePreviousPhoto(): Ignoring key, still waiting for file to load.");
                 return;
             }
 
             if (ourSlideshow.IsRunning)
             {
-                if (ourSlideshow.Defer()) // returns false if left arrow keys struck close to each other
+                if (ourSlideshow.Defer()) // returns false if deferral input occurs too close together
                 {
                     // we just deferred
-                    Logging.LogLineIf(fDebugTrace, "   DoArrowKeyLeft(): Defer returned true.");
+                    Logging.LogLineIf(fDebugTrace, "   DoUserWantsToSeePreviousPhoto(): Defer returned true.");
                     return;
                 }
                 else
                 {
                     // user pressed left key twice in a row
-                    Logging.LogLineIf(fDebugTrace, "   DoArrowKeyLeft(): Defer returned false, DoPreviousOrNext() will be called.");
+                    Logging.LogLineIf(fDebugTrace, "   DoUserWantsToSeePreviousPhoto(): Defer returned false, DoPreviousOrNext() will be called.");
                     ourSlideshow.Exit();
                     DoPreviousOrNext(true);
                     ourSlideshow.Start();
@@ -1045,19 +1045,19 @@ namespace ScotSoft.PattySaver
                 DoPreviousOrNext(true);
             }
 
-            Logging.LogLineIf(fDebugTrace, "DoArrowKeyLeft(): Exiting.");
+            Logging.LogLineIf(fDebugTrace, "DoUserWantsToSeePreviousPhoto(): Exiting.");
         }
 
         /// <summary>
-        /// Called when user hits Right arrow key on keyboard.
+        /// Called when user attempts to advance to next photo (keyboard, mouse, touch).
         /// </summary>
-        private void DoArrowKeyRight()
+        private void DoUserWantsToAdvanceToNextPhoto()
         {
             bool fDebugOutput = true;
             bool fDebugOutputTraceLevel = false;
             bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
 
-            Logging.LogLineIf(fDebugTrace, "DoArrowKeyRight(): entered.");
+            Logging.LogLineIf(fDebugTrace, "DoUserWantsToAdvanceToNextPhoto(): entered.");
 
             // we need to either:
             // 0. If in a state where we should just ignore the key, do that
@@ -1067,7 +1067,7 @@ namespace ScotSoft.PattySaver
             if (fWaitingForFileToLoad)
             {
                 // do nothing
-                Logging.LogLineIf(fDebugOutput, "   DoArrowKeyRight(): Ignoring key, still waiting for file to load.");
+                Logging.LogLineIf(fDebugOutput, "   DoUserWantsToAdvanceToNextPhoto(): Ignoring key, still waiting for file to load.");
                 return;
             }
 
@@ -1082,7 +1082,7 @@ namespace ScotSoft.PattySaver
             {
                 DoPreviousOrNext(false);
             }
-            Logging.LogLineIf(fDebugTrace, "DoArrowKeyRight(): Exiting.");
+            Logging.LogLineIf(fDebugTrace, "DoUserWantsToAdvanceToNextPhoto(): Exiting.");
         }
 
         /// <summary>
