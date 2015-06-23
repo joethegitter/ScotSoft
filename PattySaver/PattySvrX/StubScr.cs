@@ -29,17 +29,17 @@ namespace PattySvrX
         // PattSaver.exe in the same dir as the stub.
 
 #if USE_JOE_DEV_DIR
-        public const string PATH = @"C:\Users\LocallyMe\Source\Repos\ScotSoft\PattySaver\PattySaver\bin\Debug\"; 
+        public string PATH = @"C:\Users\LocallyMe\Source\Repos\ScotSoft\PattySaver\PattySaver\bin\Debug\"; 
 #elif USE_SCOT_DEV_DIR
-        public const string PATH = @"C:\"; 
+        public string PATH = @"C:\"; 
 #else
-        public const string PATH = "";
+        public static string PATH = Application.StartupPath;
 #endif
 
         // Filename the stub will launch
         public const string TARGET_BASE = "PattySaver";
         public const string TARGET_EXT = ".exe";
-        public const string TARGET = PATH + TARGET_BASE+TARGET_EXT;
+        public static string TARGET = PATH + @"\" + TARGET_BASE+TARGET_EXT;
 
         // Filename elements, command line args and keystates that tell our
         // executable to pop up debugOutputWindow on a timer after launch.

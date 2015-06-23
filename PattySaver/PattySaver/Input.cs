@@ -31,6 +31,11 @@ namespace ScotSoft.PattySaver
 
         #region Context Menu Event Handlers
 
+        /// <summary>
+        /// Context Menu is about to open
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void contextMenuMain_Opening(object sender, CancelEventArgs e)
         {
             // Get the various modes we are in, and change them as necessary for the length of 
@@ -58,6 +63,11 @@ namespace ScotSoft.PattySaver
             e.Cancel = false;
         }
 
+        /// <summary>
+        /// Context menu has just closed.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void contextMenuMain_Closed(object sender, ToolStripDropDownClosedEventArgs e)
         {
             // Get the various modes we are in, and change them as necessary for the length of 
@@ -101,12 +111,12 @@ namespace ScotSoft.PattySaver
             // DoArrowKeyX methods. Only the outermost handler will actually see the correct state, the 
             // othe handlers will see the state after the outermost has handled it. 
 
-            DoArrowKeyUp();
+            DoUserWantsToEnterETFMode();
         }
 
         private void tsmPreviousInFolder_Click(object sender, EventArgs e)
         {
-            DoArrowKeyDown();
+            DoUserWantsToExitETFMode();
         }
 
         private void tsmExitExploreFolder_Click(object sender, EventArgs e)
@@ -180,10 +190,12 @@ namespace ScotSoft.PattySaver
             //Logging.LogLineIf(fInputDebugTrace, "   PreviewKeyDown(): KeyCode = " + e.KeyCode + ", KeyValue = " + e.KeyValue + 
             //    ", KeyData = " + e.KeyData + ", Modifiers = " + e.Modifiers.ToString() + ", e.IsInputKey = " + e.IsInputKey);
 
-            e.IsInputKey = true;
-
             // We currently do not monitor this event, as we will only need it if we add any controls to the form
             // which can take user keystroke input.  If that happens, we will need to move the arrow keys into this section.
+
+            // I can't remember if we actually need this anymore. I don't believe we do, unless we do the
+            // arrow key thing mentioned above.
+            e.IsInputKey = true;
 
             Logging.LogLineIf(fInputDebugTrace, "ScreenSaverForm_PreviewKeyDown(): exiting.");
 
@@ -228,19 +240,19 @@ namespace ScotSoft.PattySaver
                     break;
 
                 case Keys.Right:
-                    DoArrowKeyRight();
+                    DoUserWantsToAdvanceToNextPhoto();
                     break;
 
                 case Keys.Left:
-                    DoArrowKeyLeft();
+                    DoUserWantsToSeePreviousPhoto();
                     break;
 
                 case Keys.Up:
-                    DoArrowKeyUp();
+                    DoUserWantsToEnterETFMode();
                     break;
 
                 case Keys.Down:
-                    DoArrowKeyDown();
+                    DoUserWantsToExitETFMode();
                     break;
 
                 case Keys.PageUp:
@@ -390,7 +402,8 @@ namespace ScotSoft.PattySaver
             //Logging.LogLineIf(fInputDebugTrace, "   KeyUp(): KeyCode = " + e.KeyCode + ", KeyValue = " + e.KeyValue +
             //    ", KeyData = " + e.KeyData + ", Modifiers = " + e.Modifiers.ToString() + ", Handled = " + e.Handled + ", SupressKeyPress = "  + e.SuppressKeyPress);
 
-
+            // since we set Control and Shift key states on KeyDown, we need to clear them
+            // here when the keyup occurs
             switch (e.KeyCode)
             {
                 case Keys.ControlKey:
