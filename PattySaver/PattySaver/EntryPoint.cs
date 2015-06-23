@@ -50,6 +50,9 @@ namespace ScotSoft.PattySaver
         public static LaunchModality LaunchMode = LaunchModality.Undecided;
         public enum LaunchModality
         {
+            /// <summary>
+            /// Functional modes.
+            /// </summary>
             DT_Configure = 10, CP_Configure = 11, CP_MiniPreview = 20, ScreenSaver = 30, ScreenSaverWindowed = 40,
             /// <summary>
             /// Lauch mode has not yet been established.
@@ -61,6 +64,9 @@ namespace ScotSoft.PattySaver
             NOLAUNCH = -1
         }
 
+        // TODO: check if we still need this, and doit correctly!
+        // this is probably unecessary now; only used to check for Shift Key by FileInfoSource objects;
+        // if that is still desirable, expose a public property, instead of the whole form object
         public static ScreenSaverForm pubScreenSaverForm;
 
         // debug output controllers
@@ -76,23 +82,23 @@ namespace ScotSoft.PattySaver
         [STAThread]
         static void Main(string[] mainArgs)
         {
-            Application.EnableVisualStyles();                       // boilerplate, ignore
-            Application.SetCompatibleTextRenderingDefault(false);   // boilerplate, ignore
+            Application.EnableVisualStyles();                       // WinForms boilerplate, ignore
+            Application.SetCompatibleTextRenderingDefault(false);   // WinForms boilerplate, ignore
 
             // Provide exception handlers for exceptions that bubble up this high without being caught.
             Application.ThreadException += new ThreadExceptionEventHandler(Application_ThreadException);
             AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(CurrentDomain_UnhandledException);
 
 #if DEBUG
-            // Uncomment the following lines and in DEBUG builds 
-            // we'll put up this dialog every time we launch, showing command line we received.
+            // If you uncomment the following lines and in DEBUG builds we'll
+            // put up this dialog every time we launch, showing command line we received.
 
             //MessageBox.Show("CommandLine: " + Environment.CommandLine , Application.ProductName,
             //    MessageBoxButtons.OK, MessageBoxIcon.Information);
 #endif
 
             // Do a Quick and Dirty Scan of the command line for debug logging 
-            // and debug hosting options, and set them early.
+            // and debug hosting options, so we can set them early.
             SetDebugOutputAndHostOptions();
 
             // Start logging
@@ -137,7 +143,7 @@ namespace ScotSoft.PattySaver
                     fRunFromScreenSaverStub = true;
                 }
 
-                // Determine if we need to maintain the debugOutput buffer
+                // Determine if we need to start maintaining debugOutput buffer immediately
                 if (arg.ToLowerInvariant().Trim() == STARTBUFFER)
                 {
                     fMaintainBuffer = true;
@@ -277,7 +283,7 @@ namespace ScotSoft.PattySaver
                     DidProcess = true; ;
                 }
 
-                // validate POPDBGWIN
+                // validate POPDBGWIN appears at proper point in args
                 if (fPopUpDebugOutputWindowOnTimer)  // this was detected earlier
                 {
                     if (mainArgs[lastProcessedIndex + 1].ToLowerInvariant() != POPDBGWIN)
@@ -286,7 +292,7 @@ namespace ScotSoft.PattySaver
                         throw new ArgumentException(@"CommandLine:" + POPDBGWIN + " detected but not at valid index." +
                             Environment.NewLine + Environment.CommandLine);
                     }
-                    DidProcess = true; ;
+                    DidProcess = true;
                 }
 
                 if (DidProcess) lastProcessedIndex++;
@@ -436,7 +442,7 @@ namespace ScotSoft.PattySaver
 
 
         /// <summary>
-        /// Opens the necessary windows.
+        /// Opens the necessary window, based on conditions and arguments.
         /// </summary>
         /// <param name="LaunchMode"></param>
         /// <param name="hWnd"></param>
