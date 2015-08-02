@@ -570,7 +570,7 @@ namespace ScotSoft.PattySaver
                 Logging.LogLineIf(fDebugTrace, " ");
 
                 // and then show ourselves modal to that window
-                NativeMethods.WindowWrapper ww = new NativeMethods.WindowWrapper(passedWndRoot);
+                JoeKCo.Utilities.WinFormSupport.WindowWrapper ww = new JoeKCo.Utilities.WinFormSupport.WindowWrapper(passedWndRoot);
                 Logging.LogLineIf(fDebugTrace, "  ShowSettings(): calling ShowDialog().");
                 settings.ShowDialog(ww);
 

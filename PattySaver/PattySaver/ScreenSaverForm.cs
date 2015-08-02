@@ -468,13 +468,13 @@ namespace ScotSoft.PattySaver
                 else  // file was null, or didn't exist any more
                 {
                     Logging.LogLineIf(fDebugOutput, "   LoadFileIntoPictureBoxAsync(): File was null or did not exist.");
-                    ShowNoImageError();
+                    ShowNoImageError("File was null or missing.");
                 }
             }
             catch (Exception ex)
             {
                 Logging.LogLineIf(fDebugOutput, "  * LoadFileIntoPictureBoxAsync(): Exception loading image from file '" + file.FullName + "'. Exception: " + ex.Message);
-                ShowNoImageError();
+                ShowNoImageError("Exception thrown loading pic: " + Environment.NewLine + ex.ToString());
             }
 
             Logging.LogLineIf(fDebugTrace, "LoadFileIntoPictureBoxAsync(): exiting.");
@@ -678,7 +678,7 @@ namespace ScotSoft.PattySaver
         /// <summary>
         /// Shows the "Error" image, and sets the metadata for it.
         /// </summary>
-        private void ShowNoImageError()
+        private void ShowNoImageError(string message = null)
         {
             pbMain.Image = PattySaverResources.noimage;
             pbMain.ImageLocation = String.Empty;
@@ -690,7 +690,8 @@ namespace ScotSoft.PattySaver
                 "  No picture" + Environment.NewLine +
                 "  Better apologize" + Environment.NewLine +
                 "  Try to smile" + Environment.NewLine +
-                "  Probably User error" + Environment.NewLine;
+                "  Probably User error" + Environment.NewLine +
+                message;
         }
 
         /// <summary>

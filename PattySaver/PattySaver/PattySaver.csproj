@@ -49,6 +49,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\..\..\DebugUtils\DebugUtils\IAppendableText.cs">
+      <Link>IAppendableText.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\DebugUtils\DebugUtils\IDisplayable.cs">
+      <Link>IDisplayable.cs</Link>
+    </Compile>
     <Compile Include="..\..\..\DebugUtils\DebugUtils\Logging.cs">
       <Link>Logging.cs</Link>
     </Compile>
@@ -61,6 +67,9 @@
     </Compile>
     <Compile Include="..\..\..\DebugUtils\DebugUtils\ScrollingTextWindow.Designer.cs">
       <Link>ScrollingTextWindow.Designer.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\DebugUtils\DebugUtils\WinFormSupport.cs">
+      <Link>WinFormSupport.cs</Link>
     </Compile>
     <Compile Include="FileInfoSource.cs" />
     <Compile Include="FontData.cs">

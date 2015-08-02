@@ -151,8 +151,8 @@ namespace ScotSoft.PattySaver
         }
 
         /// <summary>
-        /// Override of the CreateParams property. We override so we can add "WS_CHILD" to the Style each
-        /// time it is queried.
+        /// Override CreateParams property so we can add "WS_CHILD" to
+        /// the Style each time it is queried during window creation.
         /// </summary>
         protected override CreateParams CreateParams
         {

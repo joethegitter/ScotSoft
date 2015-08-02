@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
-VisualStudioVersion = 12.0.30723.0
+VisualStudioVersion = 12.0.31101.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PattySaver", "PattySaver\PattySaver.csproj", "{F233BE72-36A0-4756-B485-965A9B53680A}"
 EndProject
@@ -11,6 +11,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		ReadMe.txt = ReadMe.txt
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ScrSvStb", "ScrSvStb\ScrSvStb.csproj", "{46331083-8F7E-4977-BEE0-D882D4DE7CA3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -26,6 +28,10 @@ Global
 		{F1B4E9A9-9AAB-4D01-AEC2-F21EBA802856}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F1B4E9A9-9AAB-4D01-AEC2-F21EBA802856}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F1B4E9A9-9AAB-4D01-AEC2-F21EBA802856}.Release|Any CPU.Build.0 = Release|Any CPU
+		{46331083-8F7E-4977-BEE0-D882D4DE7CA3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{46331083-8F7E-4977-BEE0-D882D4DE7CA3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{46331083-8F7E-4977-BEE0-D882D4DE7CA3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{46331083-8F7E-4977-BEE0-D882D4DE7CA3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

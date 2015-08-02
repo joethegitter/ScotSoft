@@ -1,92 +1,74 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 using System.Runtime.InteropServices;
-using System.ComponentModel;
 using System.IO;
 
-// BUILD NOTE - do not change the build option to "Prefer 32 bit", as this will
-//    cause Windows to reject the stub when it is launched with a "This 
-//    application could not be started" error. Windows will not allow apps
-//    in the System32 directory to launch if that build option is chosen.
+using System.Windows;
+using System.Windows.Input;
 
-namespace PattySvrX
+
+
+
+namespace ScrSvStb
 {
-
-    // 1. This is a stub .scr file. Windows thinks that it is our screen saver;
-    //    in reality, it is just a little stub that launches our application
-    //    with the appropriate screen-saver related arguments.
-    // 2. Although this stub project is a WinForms project, it contains no 
-    //    forms, just the Main() method. We use a WinForms project instead of
-    //    a Console project because the Console project will flash up a console
-    //    window at startup.
-    // 3. All this stub really does is capture the command line args passed to 
-    //    us by Windows, capture the keyboard state, capture the stub filename,
-    //    and then launch our application with improved command line args 
-    //    based on all of that captured data.
-
-    static class StubScr
+    class Program
     {
 
-        // Use this "Path" constant to have the stub launch the development 
-        // version of our application from your development directory.  
-        // Otherwise, leave it empty, and the stub will expect to find 
-        // our application in the same directory as the stub.
+        // Name of the stub
+        public static string NAME = "Screen Saver Launcher";
 
-#if LAUNCH_APP_FROM_DEV_PATH
-        public const string PATH = @"C:\Users\LocallyMe\Source\Repos\ScotSoft\PattySaver\PattySaver\bin\Debug\";
-#else
-        public const string PATH = Application.StartupPath;
-#endif
+        // Use this "Path" constant to tell the Screen Saver Stub where to 
+        // find the executable to launch. By default we use the directory 
+        // that ScrSvStb lives in
+        // public static string PATH = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+        public static string PATH = System.IO.Path.GetDirectoryName(Environment.GetCommandLineArgs()[0]);
 
-        // Filename of application the stub will launch
+        // Filename the stub will launch
         public const string TARGET_BASE = "PattySaver";
         public const string TARGET_EXT = ".exe";
-        public const string TARGET = PATH + @"\" + TARGET_BASE + TARGET_EXT;
+        public static string TARGET = PATH + @"\" + TARGET_BASE + TARGET_EXT;
 
         // Filename elements, command line args and keystates that tell our
-        // application to pop up debugOutputWindow on a timer after launch.
+        // executable to pop up debugOutputWindow on a timer after launch.
         public const string FILE_DBGWIN = ".popdbgwin";
         public const string POPDBGWIN = @"/popdbgwin";
-        public static bool fShiftKeyOnly = false;
+        public static bool fShiftKeyDown = false;
 
         // Filename elements, command line args and keystates that tell our
-        // application to immediately start storing debug output in a 
-        // a buffer at launch (we normally only start when the debug window
-        // is opened, so we miss startup data)
-        public const string FILE_STARTBUFFER = ".startbuffer"; 
+        // executable to immediately start storing debug output in a 
+        // a buffer at launch (as opposed to when we open the 
+        // debugOutputWindow).
+        public const string FILE_STARTBUFFER = ".startbuffer";
         public const string STARTBUFFER = @"/startbuffer";
-        public static bool fControlKeyOnly = false;
+        public static bool fControlKeyDown = false;
 
-        // Command line args that the stub will issue to our application:
+        // Command line args that the stub will issue to our application
         public const string FROMSTUB = @"/scr";                     // tells us that our exe was launched from the stub
         public const string M_CP_CONFIGURE = @"/cp_configure";      // open settings dlg in control panel
         public const string M_CP_MINIPREVIEW = @"/cp_minipreview";  // open miniPreview form in control panel
         public const string M_DT_CONFIGURE = @"/dt_configure";      // open settings dlg on desktop
         public const string M_SCREENSAVER = @"/screensaver";        // open screenSaverForm
 
-        // Keystate that tells us to show the args received by the stub plus
-        // the launch string the stub will use to launch our application in a
-        // message box, before launching our app.
-        public static bool fAltKeyOnly = false;
+        // Keystate that tells us to always show launch args
+        public static bool fAltKeyDown = false;
 
-        /// <summary>
-        /// The main entry point for the stub.
-        /// </summary>
-        [STAThread]
+        // Import the Win32 MessageBox
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        static extern MessageBoxResult MessageBox(IntPtr hWnd, String text, String caption, MessageBoxOptions options);
+
         static void Main(string[] mainArgs)
         {
-            // WinForms boilerplate, ignore
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-
             string debugOutput = "";
             string scrArgs = "";
             string mode = "";
             bool fHasWindowHandle = false;
             string windowHandle = "";
 
-            // The incoming command line to this stub will ONLY ever be (EB = Expected Behavior):
+            // The incoming command line for this stub will ONLY ever be the following,
+            // where EB = the Behavior that Windows Expects
             //  /S                 - EB: run screensaver in fullscreen               - so we pass /screensaver
             //  /P windowHandle    - EB: put mini preview window in control panel    - so we pass /cp_minipreview -windowHandle  
             //  no args            - EB: show configure dlg on desktop               - so we pass /dt_configure
@@ -94,11 +76,9 @@ namespace PattySvrX
             //  /C:windowHandle    - EB: show configure dlg owned by control panel   - so we pass /cp_configure -windowHandle
 
             // Capture the state of the Shift key and Control Key and ALT keys at .scr launch.
-            // Note that in this implementation, we only check to see if each key is the ONLY modifier
-            // key being pressed. Combinations of these keys will do nothing.
-            if (Control.ModifierKeys == Keys.Alt) fAltKeyOnly = true;
-            if (Control.ModifierKeys == Keys.Shift) fShiftKeyOnly = true;
-            if (Control.ModifierKeys == Keys.Control) fControlKeyOnly = true;
+            fAltKeyDown = KeyboardInfo.GetKeyState(WindowsVirtualKey.VK_MENU).IsPressed;
+            fShiftKeyDown = KeyboardInfo.GetKeyState(WindowsVirtualKey.VK_SHIFT).IsPressed;
+            fControlKeyDown = KeyboardInfo.GetKeyState(WindowsVirtualKey.VK_CONTROL).IsPressed;
 
             // RARE, but first priority: user can modify filename to get certain behaviors.
             // Check if the filename has been changed, in order to force post arguments.
@@ -121,13 +101,14 @@ namespace PattySvrX
             if (postArgs == "")
             {
                 // these are exclusive
-                if (fShiftKeyOnly) postArgs += " " + POPDBGWIN;
-                if (fControlKeyOnly) postArgs += " " + STARTBUFFER;
+                if (fShiftKeyDown) postArgs += " " + POPDBGWIN;
+                if (fControlKeyDown) postArgs += " " + STARTBUFFER;
             }
 
             // Examine incoming args and build outgoing args.
             if (mainArgs.Length < 1) // no args
             {
+                // no args
                 mode = M_DT_CONFIGURE;
             }
             else if (mainArgs.Length < 2) // 1 arg
@@ -135,7 +116,7 @@ namespace PattySvrX
                 // can only be:
                 //  /S or 
                 //  /C or 
-                //  /C:windowHandle    - note this is a single arg, no space in it
+                //  /C:windowHandle
 
                 // these are exclusive, only one will ever be true
                 if (mainArgs[0].ToLowerInvariant().Trim() == @"/s") mode = M_SCREENSAVER;
@@ -171,41 +152,41 @@ namespace PattySvrX
             scrArgs += postArgs;
 
             // Decide whether to put up message box showing command line args.
-            // Change fShowArgsAlways to true if you want message box to pop up always.
-            bool fShowArgsAlways = false;
+            // Change fAlways to true if you want message box to pop up always.
+            bool fAlways = false;
 
-            if (fAltKeyOnly || fShowArgsAlways)
+            if (fAltKeyDown || fAlways)
             {
-                DialogResult dr = MessageBox.Show("Incoming cmdLine: " + System.Environment.CommandLine + Environment.NewLine + Environment.NewLine +
+                MessageBoxResult dr =  MessageBox(IntPtr.Zero, 
+                    "Incoming cmdLine: " + System.Environment.CommandLine + Environment.NewLine + Environment.NewLine +
                     "Outgoing cmdLine: " + TARGET + " " + scrArgs + Environment.NewLine + Environment.NewLine +
                     "Click OK to launch, Cancel to abort."
-                    + Environment.NewLine + Environment.NewLine + debugOutput
-                    , Application.ProductName,
-                    MessageBoxButtons.OKCancel, MessageBoxIcon.Information);
+                    + Environment.NewLine + Environment.NewLine + debugOutput,
+                    NAME, MessageBoxOptions.OkCancel);
 
                 // if user clicks Cancel, don't launch the exe
-                if (dr == DialogResult.Cancel)
+                if (dr == MessageBoxResult.Cancel)
                 {
                     return;
                 }
             }
 
-            // Is the application where we think it is?
+            // Is the application there?
             if (!File.Exists(TARGET))  // 
             {
-                DialogResult dr = MessageBox.Show("File not found: " + TARGET,Application.ProductName, MessageBoxButtons.OK,MessageBoxIcon.Error);
+                MessageBoxResult dr = MessageBox(IntPtr.Zero, "File not found: " + TARGET, NAME, MessageBoxOptions.OkOnly);
                 return;
             }
 
-            // In the M_CP_CONFIGURE case: don't let the stub process die until 
-            // the instance of our app running the Settings dialog dies. If you 
-            // don't wait, then when the Settings dialog is dismissed, the mini
-            // preview won't read the Settings changes, and won't update itself.
+            // In the M_CP_CONFIGURE case, we need to wait for the process to exit
+            // before we let the stub terminate. If we do not, Windows will 
+            // immediately launch our Preview window again while the Settings dialog
+            // is still up, and the Preview won't update when the Settings dialog closes.
             System.Diagnostics.Process proc = null;
             if (mode == M_CP_CONFIGURE)
             {
                 proc = System.Diagnostics.Process.Start(TARGET, scrArgs);
-                proc.WaitForExit();  // don't let stub die until app dies
+                proc.WaitForExit();
                 return;
             }
             else  // in all other cases, fire and forget
@@ -213,6 +194,63 @@ namespace PattySvrX
                 proc = System.Diagnostics.Process.Start(TARGET, scrArgs);
                 return;
             }
+        }
+
+        ///<summary>
+        /// Flags that define appearance and behaviour of a standard message box displayed by a call to the MessageBox function.
+        /// </summary>    
+        [Flags]
+        public enum MessageBoxOptions : uint
+        {
+            OkOnly = 0x000000,
+            OkCancel = 0x000001,
+            AbortRetryIgnore = 0x000002,
+            YesNoCancel = 0x000003,
+            YesNo = 0x000004,
+            RetryCancel = 0x000005,
+            CancelTryContinue = 0x000006,
+            IconHand = 0x000010,
+            IconQuestion = 0x000020,
+            IconExclamation = 0x000030,
+            IconAsterisk = 0x000040,
+            UserIcon = 0x000080,
+            IconWarning = IconExclamation,
+            IconError = IconHand,
+            IconInformation = IconAsterisk,
+            IconStop = IconHand,
+            DefButton1 = 0x000000,
+            DefButton2 = 0x000100,
+            DefButton3 = 0x000200,
+            DefButton4 = 0x000300,
+            ApplicationModal = 0x000000,
+            SystemModal = 0x001000,
+            TaskModal = 0x002000,
+            Help = 0x004000,
+            NoFocus = 0x008000,
+            SetForeground = 0x010000,
+            DefaultDesktopOnly = 0x020000,
+            Topmost = 0x040000,
+            Right = 0x080000,
+            RTLReading = 0x100000
+        }
+
+        /// <summary>
+        /// Represents possible values returned by the MessageBox function.
+        /// </summary>
+        public enum MessageBoxResult : uint
+        {
+            Ok = 1,
+            Cancel,
+            Abort,
+            Retry,
+            Ignore,
+            Yes,
+            No,
+            Close,
+            Help,
+            TryAgain,
+            Continue,
+            Timeout = 32000
         }
     }
 }

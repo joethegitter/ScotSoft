@@ -121,9 +121,6 @@ namespace JKSoft
                 }
             }
 
-            System.Diagnostics.Process procPreview = null;
-            System.Diagnostics.Process procConfigure = null;
-
             if (mode == M_CP_MINIPREVIEW)
             {
                 procPreview = System.Diagnostics.Process.Start(TARGET, scrArgs);
