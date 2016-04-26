@@ -24,7 +24,7 @@ namespace ScotSoft.PattySaver
 
         // Public Fields accessed by other forms
         public Settings settingsForm;                           // the Settings Form object, accessable by other forms; null when not in DoSettings() scope
-        public PictureBox refto_pbMainPhoto;                    // this public reference to our pb allows other forms to call Invalidate on it
+        public PictureBox refto_pbMainPhoto;                    // this public reference to our pb allows other forms to call Invalidate on it. Hack! Use eventing.
         public FontDialog fontdlg;                              // the Font Dialog we'll use from FullScreen and Settings forms
         public Font fdFont;                                     // the Font we use to format the font dialog
         public ColorDialog colordlg;                            // The Color Dialog we'll use from FullScreen and Settings forms
@@ -55,6 +55,8 @@ namespace ScotSoft.PattySaver
         private bool fWasInSlideshowModeWhenETFStarted = false; // lets us pause and resume Slideshow Mode entering and exiting ETF mode.
         private bool fWasInSlideshowModeWhenDeactivated = false;// lets us pause and resume Slideshow Mode when window is deactivate/activated
         private bool fShowingDialog = false;                    // lets us know that we're losing activation because we're showing dialog
+        private long countOfPicsLoaded = 0;                     // count of pics loaded into pb; should probably be made threadsafe
+
 
         // Slideshow object
         public Slideshow ourSlideshow;                          // the object which controls our slideshow mechanics
@@ -74,6 +76,8 @@ namespace ScotSoft.PattySaver
 
         // debug
         long dbgTotalMemoryHighWaterMark = 0;
+        private long countOfPicsLoadedWithoutGC = 0;
+        private long maxCountOfPicsToLoadBetweenGC = long.MaxValue - 50;
 
         #endregion Fields
 
@@ -495,32 +499,41 @@ namespace ScotSoft.PattySaver
             bool fDebugTrace = fDebugOutput && fDebugOutputTraceLevel;
 
             Logging.LogLineIf(fDebugTrace, "pbMain_LoadCompleted(): entered.");
+            countOfPicsLoaded++;
 
             // Our memory footprint goes up with each image loaded, until the CLR thinks
             // it looks too high; then the CLR calls GC.Collect to force garbage collection.
             // We can instead force the CLR to garbage collect after each image, which keeps
-            // our memory footprint smaller, but can possibly slow down very fast scrolling
-            // through a list of images. Uncomment the following line to make that happen.
+            // our memory footprint smaller, but might possibly slow down very fast scrolling
+            // through a list of images. 
 
-            //GC.Collect();
+            // IF we want to trace memory usage through debug out, uncomment this
+            //if (fDebugTrace)
+            //{
+            //    long newTotalMemory = GC.GetTotalMemory(false);
+            //    string output = "   pbMain_LoadCompleted(): Total Memory occupied: " + newTotalMemory;
+            //    if (newTotalMemory > dbgTotalMemoryHighWaterMark)
+            //    {
+            //        output += " new high (old high was " + dbgTotalMemoryHighWaterMark + ")";
+            //        dbgTotalMemoryHighWaterMark = newTotalMemory;
+            //    }
+            //    Logging.LogLineIf(fDebugTrace, output);
+            //}
 
-            if (fDebugTrace)
+            // If we want to manually force garbage collection after every X pics loaded, 
+            // change maxCountOfPicsToLoadBetweenGC (by default it is extremely large number)
+            if (countOfPicsLoadedWithoutGC > maxCountOfPicsToLoadBetweenGC)
             {
-                long newTotalMemory = GC.GetTotalMemory(false);
-                string output = "   pbMain_LoadCompleted(): Total Memory occupied: " + newTotalMemory;
-                if (newTotalMemory > dbgTotalMemoryHighWaterMark)
-                {
-                    output += " new high (old high was " + dbgTotalMemoryHighWaterMark + ")";
-                    dbgTotalMemoryHighWaterMark = newTotalMemory;
-                }
-                Logging.LogLineIf(fDebugTrace, output);
+                Logging.LogLineIf(fDebugTrace, "pbMain_LoadCompleted(): countOfPicsLoadedWithoutGC > maxCountOfPicsToLoadBetweenGC [" 
+                    + maxCountOfPicsToLoadBetweenGC.ToString() + "calling GC.Collect()");
+                GC.Collect();
             }
 
             // In theory, if we are here, file has loaded and been drawn. I certainly hope so.
             fShowingEmbeddedFileImage = false;
             fWaitingForFileToLoad = false;
 
-            // if the image is less than 1/3 of the picturebox both dimensions, change zoom mode to center
+            // if the image is less than 1/3 of the picturebox in both dimensions, change zoom mode to center
             // so that a tiny image is not blown up full screen:
 
             //if ((pbMain.Image.PhysicalDimension.Height * 3 ) < pbMain.Height &&
