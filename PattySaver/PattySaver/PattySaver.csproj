@@ -49,26 +49,30 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\..\..\DebugUtils\DebugUtils\IAppendableText.cs">
+    <Compile Include="..\..\..\Utilities\DebugUtils\IAppendableText.cs">
       <Link>IAppendableText.cs</Link>
     </Compile>
-    <Compile Include="..\..\..\DebugUtils\DebugUtils\IDisplayable.cs">
+    <Compile Include="..\..\..\Utilities\DebugUtils\IDisplayable.cs">
       <Link>IDisplayable.cs</Link>
     </Compile>
-    <Compile Include="..\..\..\DebugUtils\DebugUtils\Logging.cs">
+    <Compile Include="..\..\..\Utilities\DebugUtils\KeyboardInfo.cs">
+      <Link>KeyboardInfo.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\Utilities\DebugUtils\Logging.cs">
       <Link>Logging.cs</Link>
     </Compile>
-    <Compile Include="..\..\..\DebugUtils\DebugUtils\NativeMethods.cs">
+    <Compile Include="..\..\..\Utilities\DebugUtils\NativeMethods.cs">
       <Link>NativeMethods.cs</Link>
     </Compile>
-    <Compile Include="..\..\..\DebugUtils\DebugUtils\ScrollingTextWindow.cs">
+    <Compile Include="..\..\..\Utilities\DebugUtils\ScrollingTextWindow.cs">
       <Link>ScrollingTextWindow.cs</Link>
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="..\..\..\DebugUtils\DebugUtils\ScrollingTextWindow.Designer.cs">
-      <Link>ScrollingTextWindow.Designer.cs</Link>
+    <Compile Include="..\..\..\Utilities\DebugUtils\ScrollingTextWindow.designer.cs">
+      <Link>ScrollingTextWindow.designer.cs</Link>
+      <DependentUpon>ScrollingTextWindow.cs</DependentUpon>
     </Compile>
-    <Compile Include="..\..\..\DebugUtils\DebugUtils\WinFormSupport.cs">
+    <Compile Include="..\..\..\Utilities\DebugUtils\WinFormSupport.cs">
       <Link>WinFormSupport.cs</Link>
     </Compile>
     <Compile Include="FileInfoSource.cs" />
@@ -115,8 +119,9 @@
     <Compile Include="Slideshow.cs">
       <SubType>Form</SubType>
     </Compile>
-    <EmbeddedResource Include="..\..\..\DebugUtils\DebugUtils\ScrollingTextWindow.resx">
+    <EmbeddedResource Include="..\..\..\Utilities\DebugUtils\ScrollingTextWindow.resx">
       <Link>ScrollingTextWindow.resx</Link>
+      <DependentUpon>ScrollingTextWindow.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="HelpAboutForm.resx">
       <DependentUpon>HelpAboutForm.cs</DependentUpon>

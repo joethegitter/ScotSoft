@@ -7,8 +7,8 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Diagnostics;
 
+using JoeKCo.Utilities;
 using JoeKCo.Utilities.Debug;
-
 
 namespace ScotSoft.PattySaver
 {
